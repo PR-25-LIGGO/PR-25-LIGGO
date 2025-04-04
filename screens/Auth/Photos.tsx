@@ -10,11 +10,11 @@ export default function Photos() {
 
     const pickImage = async (index: number) => {
         const result = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ImagePicker.MediaTypeOptions.Images,
-            allowsEditing: true,
-            aspect: [4, 4],
+            mediaTypes: ImagePicker.MediaTypeOptions.Images, /*No lo cambien no funciona bien con otros*/
+            allowsEditing: false,
             quality: 1,
         });
+        
 
         if (!result.canceled) {
             const newPhotos = [...photos];

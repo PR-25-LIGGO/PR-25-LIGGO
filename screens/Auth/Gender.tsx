@@ -99,7 +99,7 @@ const styles = StyleSheet.create({
     marginBottom: 30,
   },
   checkboxLabel: {
-    marginLeft: 8,
+    marginLeft: 0,
     color: "#777",
   },
   buttonWrapper: {
