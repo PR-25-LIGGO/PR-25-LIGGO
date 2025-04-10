@@ -2,11 +2,36 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet } from "react-nativ
 import { LinearGradient } from "expo-linear-gradient";
 import { useState } from "react";
 import { useRouter } from "expo-router";
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { auth } from "../../services/firebase";
+import { Alert } from "react-native";
+
 
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const router = useRouter();
+
+  const handleLogin = async () => {
+    if (!email || !password) {
+      Alert.alert("Campos vacíos", "Ingresa tu correo y contraseña");
+      return;
+    }
+  
+    if (!email.endsWith("@est.univalle.edu")) {
+      Alert.alert("Correo inválido", "Debes usar tu correo institucional");
+      return;
+    }
+  
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+      Alert.alert("Bienvenido", "Sesión iniciada con éxito");
+      router.push("/auth/swipe-screen"); 
+    } catch (error: any) {
+      Alert.alert("Error al iniciar sesión", error.message);
+    }
+  };
+  
 
   return (
     <View style={styles.container}>
@@ -37,7 +62,7 @@ export default function Login() {
         <Text style={styles.forgotText}>¿Olvidaste tu contraseña?</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity onPress={() => router.push("/auth/verify-code")} style={styles.buttonWrapper}>
+      <TouchableOpacity onPress={handleLogin} style={styles.buttonWrapper}>
         <LinearGradient
           colors={["#4eff6a", "#ff87d2"]}
           start={{ x: 0, y: 0 }}

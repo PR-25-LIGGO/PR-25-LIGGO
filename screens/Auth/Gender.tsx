@@ -3,12 +3,41 @@ import BouncyCheckbox from "react-native-bouncy-checkbox";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { useState } from "react";
+import { auth } from "../../services/firebase";
+import { db } from "../../services/firebase";
+import { doc, setDoc } from "firebase/firestore";
+import { Alert } from "react-native";
+
 
 export default function Gender() {
   const router = useRouter();
   const [selected, setSelected] = useState<string | null>(null);
   const [show, setShow] = useState(false);
-
+  const handleContinue = async () => {
+    if (!selected) {
+      Alert.alert("Selecciona una opción", "Debes elegir un género para continuar");
+      return;
+    }
+  
+    const uid = auth.currentUser?.uid;
+    if (!uid) {
+      Alert.alert("Error", "No hay usuario autenticado");
+      return;
+    }
+  
+    try {
+      const userRef = doc(db, "users", uid);
+      await setDoc(userRef, {
+        gender: selected,
+        showGender: show,
+      }, { merge: true });
+  
+      router.push("/auth/interest"); // o la siguiente pantalla
+    } catch (error: any) {
+      Alert.alert("Error al guardar", error.message);
+    }
+  };
+  
   return (
     <View style={styles.container}>
       <TouchableOpacity onPress={() => router.back()} style={styles.backArrow}>
@@ -40,10 +69,7 @@ export default function Gender() {
         <Text style={styles.checkboxLabel}>Mostrar mi género en el perfil</Text>
       </View>
 
-      <TouchableOpacity
-        onPress={() => router.push("/auth/interest")}
-        style={styles.buttonWrapper}
-      >
+      <TouchableOpacity onPress={handleContinue} style={styles.buttonWrapper}>
         <LinearGradient
           colors={["#4eff6a", "#ff87d2"]}
           start={{ x: 0, y: 0 }}
