@@ -3,6 +3,7 @@ import BouncyCheckbox from "react-native-bouncy-checkbox";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { useState } from "react";
+import React from "react";
 
 export default function Gender() {
   const router = useRouter();

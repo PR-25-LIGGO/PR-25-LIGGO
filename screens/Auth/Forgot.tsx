@@ -41,6 +41,7 @@ export default function Forgot() {
 }
 
 import { useState } from "react";
+import React from "react";
 
 const styles = StyleSheet.create({
   container: {
