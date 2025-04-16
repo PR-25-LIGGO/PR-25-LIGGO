@@ -1,11 +1,38 @@
-import { View, Text, TextInput, TouchableOpacity, StyleSheet } from "react-native";
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { useState } from "react";
+import { auth } from "../../services/firebase";
+import { reload, sendEmailVerification } from "firebase/auth";
 
 export default function VerifyCode() {
   const router = useRouter();
-  const [code, setCode] = useState("");
+
+  const handleCheckVerification = async () => {
+    try {
+      await reload(auth.currentUser!); // Refresca el estado del usuario desde Firebase
+
+      if (auth.currentUser?.emailVerified) {
+        Alert.alert("Verificado", "Tu correo ha sido verificado correctamente");
+        router.push("/auth/name"); // Continúa al flujo de completar datos
+      } else {
+        Alert.alert("No verificado", "Aún no has confirmado tu correo. Revisa tu bandeja de entrada o spam.");
+      }
+    } catch (error: any) {
+      Alert.alert("Error", error.message);
+    }
+  };
+
+  const handleResendEmail = async () => {
+    try {
+      if (auth.currentUser && !auth.currentUser.emailVerified) {
+        await sendEmailVerification(auth.currentUser);
+        Alert.alert("Correo reenviado", "Verifica tu bandeja de entrada y spam.");
+      }
+    } catch (error: any) {
+      Alert.alert("Error al reenviar", error.message);
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -13,30 +40,25 @@ export default function VerifyCode() {
         <Text style={{ fontSize: 18 }}>◀</Text>
       </TouchableOpacity>
 
-      <Text style={styles.title}>Código de verificación</Text>
-
-      <TextInput
-        placeholder="000000"
-        placeholderTextColor="#999"
-        keyboardType="numeric"
-        value={code}
-        onChangeText={setCode}
-        style={styles.input}
-      />
+      <Text style={styles.title}>Verifica tu correo</Text>
 
       <Text style={styles.info}>
-        Te enviaremos un código de verificación a tu correo institucional para verificar que eres tú
+        Hemos enviado un enlace de verificación a tu correo institucional. Revisa tu bandeja de entrada o spam.
       </Text>
 
-      <TouchableOpacity onPress={() => router.push("/auth/name")} style={styles.buttonWrapper}>
+      <TouchableOpacity onPress={handleCheckVerification} style={styles.buttonWrapper}>
         <LinearGradient
           colors={["#4eff6a", "#ff87d2"]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
           style={styles.button}
         >
-          <Text style={styles.buttonText}>CONTINUAR</Text>
+          <Text style={styles.buttonText}>YA VERIFIQUÉ</Text>
         </LinearGradient>
+      </TouchableOpacity>
+
+      <TouchableOpacity onPress={handleResendEmail} style={styles.resendButton}>
+        <Text style={styles.resendText}>Reenviar correo de verificación</Text>
       </TouchableOpacity>
     </View>
   );
@@ -54,6 +76,17 @@ const styles = StyleSheet.create({
     top: 60,
     left: 24,
   },
+  resendButton: {
+    marginTop: 20,
+    padding: 10,
+  },
+  
+  resendText: {
+    color: "#888",
+    textAlign: "center",
+    textDecorationLine: "underline",
+  },
+  
   title: {
     fontSize: 22,
     fontWeight: "bold",

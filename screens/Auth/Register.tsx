@@ -2,18 +2,61 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet } from "react-nativ
 import { LinearGradient } from "expo-linear-gradient";
 import { useState } from "react";
 import { useRouter } from "expo-router";
+import { createUserWithEmailAndPassword } from "firebase/auth";
+import { auth } from "../../services/firebase";
+import { Alert } from "react-native";
+import { doc, setDoc } from "firebase/firestore";
+import { db } from "../../services/firebase";
+import { sendEmailVerification } from "firebase/auth";
+
 
 export default function Register() {
   const router = useRouter();
 
-  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
 
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
-
+  const handleRegister = async () => {
+    if (!email || !password || !confirm) {
+      Alert.alert("Error", "Todos los campos son obligatorios");
+      return;
+    }
+  
+    if (!email.endsWith("@est.univalle.edu")) {
+      Alert.alert("Correo inválido", "Usa tu correo institucional (@est.univale.edu)");
+      return;
+    }
+  
+    if (password !== confirm) {
+      Alert.alert("Contraseñas no coinciden", "Revisa que ambas contraseñas sean iguales");
+      return;
+    }
+  
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+    
+      await sendEmailVerification(user);
+    
+      Alert.alert(
+        "Verificación enviada",
+        "Hemos enviado un enlace de verificación a tu correo. Revisa tu bandeja de entrada o spam."
+      );
+    
+      // Guardamos solo la fecha de creación. Lo demás se guardará luego de la verificación
+      await setDoc(doc(db, "users", user.uid), {
+        createdAt: new Date().toISOString()
+      });
+    
+      router.push("/auth/verify-code");
+    } catch (error: any) {
+      Alert.alert("Error al registrarse", error.message);
+    }    
+  };
+  
   return (
     <View style={styles.container}>
       <TouchableOpacity onPress={() => router.back()} style={styles.backArrow}>
@@ -22,13 +65,6 @@ export default function Register() {
 
       <Text style={styles.title}>Registro</Text>
 
-      <TextInput
-        placeholder="Nombre completo"
-        placeholderTextColor="#999"
-        value={name}
-        onChangeText={setName}
-        style={styles.input}
-      />
       <TextInput
         placeholder="Correo institucional"
         placeholderTextColor="#999"
@@ -65,7 +101,7 @@ export default function Register() {
         </TouchableOpacity>
       </View>
 
-      <TouchableOpacity onPress={() => router.push("/auth/verify-code")} style={styles.buttonWrapper}>
+      <TouchableOpacity onPress={handleRegister} style={styles.buttonWrapper}>
         <LinearGradient
           colors={["#4eff6a", "#ff87d2"]}
           start={{ x: 0, y: 0 }}
@@ -76,6 +112,7 @@ export default function Register() {
         </LinearGradient>
       </TouchableOpacity>
     </View>
+    
   );
 }
 
