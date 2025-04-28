@@ -3,81 +3,123 @@ import * as ImagePicker from "expo-image-picker";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { useState } from "react";
+import { auth, db, storage } from "../../services/firebase";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { doc, setDoc } from "firebase/firestore";
+
 
 export default function Photos() {
     const router = useRouter();
     const [photos, setPhotos] = useState<(string | null)[]>([null, null, null, null, null, null]);
-
+    const [uploading, setUploading] = useState(false);
+  
     const pickImage = async (index: number) => {
-        const result = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ImagePicker.MediaTypeOptions.Images, /*No lo cambien no funciona bien con otros*/
-            allowsEditing: false,
-            quality: 1,
-        });
-        
-
-        if (!result.canceled) {
-            const newPhotos = [...photos];
-            newPhotos[index] = result.assets[0].uri;
-            setPhotos(newPhotos);
-        }
-    };
-
-    const removeImage = (index: number) => {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: false,
+        quality: 1,
+      });
+  
+      if (!result.canceled) {
         const newPhotos = [...photos];
-        newPhotos[index] = null;
+        newPhotos[index] = result.assets[0].uri;
         setPhotos(newPhotos);
+      }
     };
+  
+    const removeImage = (index: number) => {
+      const newPhotos = [...photos];
+      newPhotos[index] = null;
+      setPhotos(newPhotos);
+    };
+  
+    const handleContinue = async () => {
+      const selectedPhotos = photos.filter((p) => p !== null) as string[];
+      if (selectedPhotos.length < 2) {
+        Alert.alert("Requiere al menos 2 fotos para continuar");
+        return;
+      }
+  
+      const uid = auth.currentUser?.uid;
+      if (!uid) {
+        Alert.alert("Error", "No hay usuario autenticado");
+        return;
+      }
+  
+      try {
+        setUploading(true);
+        const downloadURLs: string[] = [];
+  
+        for (let i = 0; i < selectedPhotos.length; i++) {
+          const response = await fetch(selectedPhotos[i]);
+          const blob = await response.blob();
+          const filename = `users/${uid}/photo${i + 1}.jpg`;
+  
+          const imageRef = ref(storage, filename);
+          await uploadBytes(imageRef, blob);
+          const url = await getDownloadURL(imageRef);
+          console.log(`Foto ${i + 1} subida: ${url}`);
 
-    const handleContinue = () => {
-        const selectedPhotos = photos.filter((p) => p !== null);
-        if (selectedPhotos.length < 2) {
-            Alert.alert("Requiere al menos 2 fotos para continuar");
-            return;
+          downloadURLs.push(url);
         }
+  
+        // Guardar en Firestore
+        await setDoc(
+          doc(db, "users", uid),
+          { photos: downloadURLs },
+          { merge: true }
+        );
+  
         router.push("/auth/rules");
+      } catch (error: any) {
+        Alert.alert("Error al subir fotos", error.message);
+      } finally {
+        setUploading(false);
+      }
     };
-
+  
     return (
-        <View style={styles.container}>
-            <TouchableOpacity onPress={() => router.back()} style={styles.backArrow}>
-                <Text style={{ fontSize: 18 }}>◀</Text>
+      <View style={styles.container}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backArrow}>
+          <Text style={{ fontSize: 18 }}>◀</Text>
+        </TouchableOpacity>
+  
+        <Text style={styles.title}>Agregar fotos</Text>
+        <Text style={styles.subtitle}>Agrega por lo menos 2 fotos</Text>
+  
+        <View style={styles.grid}>
+          {photos.map((uri, index) => (
+            <TouchableOpacity key={index} style={styles.imageBox} onPress={() => pickImage(index)}>
+              {uri ? (
+                <>
+                  <Image source={{ uri }} style={styles.image} />
+                  <TouchableOpacity style={styles.remove} onPress={() => removeImage(index)}>
+                    <Text style={styles.removeText}>✕</Text>
+                  </TouchableOpacity>
+                </>
+              ) : (
+                <Text style={styles.plus}>＋</Text>
+              )}
             </TouchableOpacity>
-
-            <Text style={styles.title}>Agregar fotos</Text>
-            <Text style={styles.subtitle}>Agrega por lo menos 2 fotos</Text>
-
-            <View style={styles.grid}>
-                {photos.map((uri, index) => (
-                    <TouchableOpacity key={index} style={styles.imageBox} onPress={() => pickImage(index)}>
-                        {uri ? (
-                            <>
-                                <Image source={{ uri }} style={styles.image} />
-                                <TouchableOpacity style={styles.remove} onPress={() => removeImage(index)}>
-                                    <Text style={styles.removeText}>✕</Text>
-                                </TouchableOpacity>
-                            </>
-                        ) : (
-                            <Text style={styles.plus}>＋</Text>
-                        )}
-                    </TouchableOpacity>
-                ))}
-            </View>
-
-            <TouchableOpacity onPress={handleContinue} style={styles.buttonWrapper}>
-                <LinearGradient
-                    colors={["#4eff6a", "#ff87d2"]} // degradado como los otros botones
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={styles.button}
-                >
-                    <Text style={[styles.buttonText, { color: "#fff" }]}>CONTINUAR</Text>
-                </LinearGradient>
-
-            </TouchableOpacity>
+          ))}
         </View>
+  
+        <TouchableOpacity onPress={handleContinue} style={styles.buttonWrapper} disabled={uploading}>
+          <LinearGradient
+            colors={["#4eff6a", "#ff87d2"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.button}
+          >
+            <Text style={styles.buttonText}>
+              {uploading ? "Subiendo..." : "CONTINUAR"}
+            </Text>
+          </LinearGradient>
+        </TouchableOpacity>
+      </View>
     );
-}
+  }
+  
 
 const styles = StyleSheet.create({
     container: {

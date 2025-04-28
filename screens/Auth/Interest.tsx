@@ -2,6 +2,10 @@ import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { useState } from "react";
+import { auth, db } from "../../services/firebase";
+import { doc, setDoc } from "firebase/firestore";
+import { Alert } from "react-native";
+
 
 const INTERESTS = [
     "Arquitectura",
@@ -37,29 +41,52 @@ const INTERESTS = [
   ];
   
 
-export default function Interests() {
-  const router = useRouter();
-  const [selected, setSelected] = useState<string[]>([]);
-
-  const toggleInterest = (item: string) => {
-    if (selected.includes(item)) {
-      setSelected(selected.filter(i => i !== item));
-    } else {
-      setSelected([...selected, item]);
-    }
-  };
+  export default function Interests() {
+    const router = useRouter();
+    const [selected, setSelected] = useState<string[]>([]);
+  
+    const toggleInterest = (item: string) => {
+      if (selected.includes(item)) {
+        setSelected(selected.filter(i => i !== item));
+      } else {
+        setSelected([...selected, item]);
+      }
+    };
+  
+    const handleContinue = async () => {
+      const uid = auth.currentUser?.uid;
+  
+      if (!uid) {
+        Alert.alert("Error", "No hay usuario autenticado");
+        return;
+      }
+  
+      try {
+        const userRef = doc(db, "users", uid);
+        await setDoc(userRef, {
+          interests: selected
+        }, { merge: true });
+  
+        router.push("/auth/photos"); // siguiente pantalla
+      } catch (error: any) {
+        Alert.alert("Error al guardar intereses", error.message);
+      }
+    };
 
   return (
     <View style={styles.container}>
+      {/* Botón de retroceso */}
       <TouchableOpacity onPress={() => router.back()} style={styles.backArrow}>
         <Text style={{ fontSize: 18 }}>◀</Text>
       </TouchableOpacity>
 
+      {/* Título */}
       <Text style={styles.title}>Intereses</Text>
       <Text style={styles.subtitle}>
         Los intereses aparecerán en tu perfil, los puedes cambiar en cualquier momento
       </Text>
 
+      {/* Tags */}
       <View style={styles.tagsContainer}>
         {INTERESTS.map((item) => (
           <TouchableOpacity
@@ -74,14 +101,15 @@ export default function Interests() {
         ))}
       </View>
 
-      <TouchableOpacity onPress={() => router.push("/auth/photos")} style={styles.buttonWrapper}>
+      {/* Botón continuar */}
+      <TouchableOpacity onPress={handleContinue} style={styles.buttonWrapper}>
         <LinearGradient
           colors={["#4eff6a", "#ff87d2"]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
           style={styles.button}
         >
-          <Text style={styles.buttonText}>CONTINUAR 2/5</Text>
+          <Text style={styles.buttonText}>CONTINUAR</Text>
         </LinearGradient>
       </TouchableOpacity>
     </View>
