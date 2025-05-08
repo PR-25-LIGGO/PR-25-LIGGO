@@ -1,34 +1,94 @@
-// app/auth/profile.tsx
-import React from 'react';
-import { View, Text, StyleSheet, Image, ScrollView } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, Image, ScrollView, FlatList, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { auth, db } from '@/services/firebase';
+import { doc, getDoc } from 'firebase/firestore';
 import BottomNav from '@/components/BottomNav';
+import { useRouter } from 'expo-router';
+import { StyleSheet } from 'react-native';
 
-export default function Profile() {
+
+export default function ProfileScreen() {
+  const [userData, setUserData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const router = useRouter();
+
+  useEffect(() => {
+    const fetchUserData = async () => {
+      const uid = auth.currentUser?.uid;
+      if (!uid) {
+        setLoading(false);
+        return;
+      }
+
+      const ref = doc(db, 'users', uid);
+      const snap = await getDoc(ref);
+
+      if (snap.exists()) {
+        setUserData(snap.data());
+      }
+
+      setLoading(false);
+    };
+
+    fetchUserData();
+  }, []);
+
+  const calculateAge = (birthdate: string) => {
+    const [day, month, year] = birthdate.split('/').map(Number);
+    const birth = new Date(year, month - 1, day);
+    const now = new Date();
+    let age = now.getFullYear() - birth.getFullYear();
+    const m = now.getMonth() - birth.getMonth();
+    if (m < 0 || (m === 0 && now.getDate() < birth.getDate())) {
+      age--;
+    }
+    return age;
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#FF6C00" />
+      </View>
+    );
+  }
+
+  if (!userData) {
+    return (
+      <View style={styles.container}>
+        <Text>No se encontraron datos del usuario.</Text>
+        <TouchableOpacity onPress={() => router.push("/profile/edit")}> {/* Ajustado */}
+          <Text style={{ color: '#FF6C00', fontWeight: 'bold' }}>Completar perfil</Text>
+        </TouchableOpacity>
+        <BottomNav />
+      </View>
+    );
+  }
+
+  const { name, gender, birthdate, photos = [] } = userData;
+  const age = calculateAge(birthdate);
+
   return (
     <View style={styles.container}>
-      {/* Logo centrado arriba */}
-      <View style={styles.logoContainer}>
-        <Image
-          source={require('@/assets/logo-liggo.png')}
-          style={styles.logo}
-          resizeMode="contain"
-        />
-      </View>
-
       <ScrollView contentContainerStyle={styles.scroll}>
-        <Image
-          source={{ uri: 'https://randomuser.me/api/portraits/women/82.jpg' }} // Reemplaza con imagen real
-          style={styles.avatar}
-        />
+        {photos.length > 0 ? (
+          <FlatList
+            data={photos}
+            keyExtractor={(item, index) => index.toString()}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            renderItem={({ item }) => (
+              <Image source={{ uri: item }} style={styles.image} />
+            )}
+          />
+        ) : (
+          <Text>No has subido fotos aún.</Text>
+        )}
 
-        <Text style={styles.name}>Paula</Text>
-        <Text style={styles.profession}>Químico Farmacéutico</Text>
-        <Text style={styles.university}>Universidad América</Text>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Intereses</Text>
-          <Text style={styles.interests}>🎨 Arte, 📚 Lectura, 🏃‍♂️ Deporte</Text>
-        </View>
+        <Text style={styles.name}>{name}</Text>
+        <Text style={styles.profession}>{gender}</Text>
+        <Text style={styles.university}>{age} años</Text>
       </ScrollView>
 
       <BottomNav />
@@ -37,38 +97,29 @@ export default function Profile() {
 }
 
 const styles = StyleSheet.create({
-  container: {
+  container: { flex: 1, backgroundColor: '#fff' },
+  loadingContainer: {
     flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
     backgroundColor: '#fff',
   },
-  logoContainer: {
-    position: 'absolute',
-    top: 40,
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-    zIndex: 1,
-  },
-  logo: {
-    width: 140,
-    height: 60,
-  },
   scroll: {
-    paddingTop: 120,
+    paddingTop: 60,
     paddingBottom: 100,
     alignItems: 'center',
     paddingHorizontal: 20,
   },
-  avatar: {
-    width: 160,
-    height: 160,
-    borderRadius: 80,
-    marginTop: 20,
-    marginBottom: 20,
+  image: {
+    width: 300,
+    height: 400,
+    borderRadius: 20,
+    margin: 10,
   },
   name: {
     fontSize: 24,
     fontWeight: 'bold',
+    marginTop: 10,
   },
   profession: {
     fontSize: 16,
@@ -79,21 +130,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#999',
     marginBottom: 30,
-  },
-  section: {
-    width: '100%',
-    backgroundColor: '#f7f7f7',
-    borderRadius: 16,
-    padding: 16,
-    marginTop: 20,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 8,
-  },
-  interests: {
-    fontSize: 16,
-    color: '#444',
   },
 });

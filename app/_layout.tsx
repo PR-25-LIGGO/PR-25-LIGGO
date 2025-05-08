@@ -4,6 +4,8 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
 import 'react-native-reanimated';
+import "react-native-get-random-values";
+
 
 import SplashScreen from '@/components/splashScreen';
 import { useColorScheme } from '@/hooks/useColorScheme';
