@@ -56,7 +56,7 @@ export default function Birthdate() {
       <Text style={styles.title}>Mi fecha de nacimiento</Text>
 
       <TextInput
-        placeholder="D  /  MM  /  YYYY"
+        placeholder="DD /  MM  /  YYYY"
         placeholderTextColor="#999"
         keyboardType="numeric"
         value={birthdate}
