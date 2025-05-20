@@ -1,0 +1,19 @@
+[33m68b940b[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m)[m feat: cambios prifile y edit profile
+[33m7c944d8[m[33m ([m[1;31morigin/main[m[33m)[m Merge pull request #5 from PR-25-LIGGO/ruddyBranchLiggo
+[33m241766b[m Corrección de lógica de swipe y match en la app Liggo
+[33medb9381[m Implementación de funcionalidades de Match y Swipe en la aplicación de chats
+[33m1f1f6b5[m Implementación de funcionalidad y correcciones en Login y SwipeScreen
+[33m9f50938[m Actualización de dependencias para eliminar los errores al momento iniciar la app.
+[33m3698433[m Eventos e intento de perfil
+[33mae93067[m Merge pull request #4 from PR-25-LIGGO/ruddyBranchLiggo
+[33m09c855d[m Paginas de "Intereses" y "Photos" integrados correctamente y vinculado con el Storage y Cloud Firestore + actualizacion de dependencias.
+[33m61cf011[m Merge pull request #3 from PR-25-LIGGO/ruddyBranchLiggo
+[33mebb1408[m Corrige advertencias de TypeScript agregando JSX automático con react-jsx en tsconfig
+[33m2ca80d4[m Corrige configuración TypeScript y actualiza versiones de React y React Native.
+[33m22ce624[m Merge pull request #1 from PR-25-LIGGO/ramaIgnacio
+[33mf2de770[m Login, registro,verificacion y creacion de users
+[33m51878e0[m[33m ([m[1;31morigin/erickLiggo[m[33m)[m feat: mejoras visuales y navegación swipe
+[33m5bcab90[m[33m ([m[1;32merickLiggo[m[33m)[m Resuelto conflicto al fusionar con la rama principal
+[33mc238be3[m Primer commit para la rama erickLiggo
+[33m7fc4588[m[33m ([m[1;32mmaster[m[33m)[m Initial commit
+[33m39763f6[m Initial commit

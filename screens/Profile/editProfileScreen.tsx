@@ -3,16 +3,18 @@ import {
   View,
   Text,
   TouchableOpacity,
+  TextInput,
   StyleSheet,
   Alert,
-  TextInput,
-  ScrollView,
   Image,
+  ScrollView,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
-import { auth, db } from "../../services/firebase";
+import * as ImagePicker from "expo-image-picker";
+import { auth, db, storage } from "../../services/firebase";
 import { doc, getDoc, setDoc } from "firebase/firestore";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
 const INTERESTS = [
   "Arquitectura",
@@ -52,6 +54,7 @@ export default function EditProfileScreen() {
   const [name, setName] = useState("");
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [photos, setPhotos] = useState<(string | null)[]>([null, null]);
   const [saving, setSaving] = useState(false);
 
   // Cargar datos actuales
@@ -67,6 +70,7 @@ export default function EditProfileScreen() {
           const data = docSnap.data();
           setName(data.name || "");
           setSelectedInterests(data.interests || []);
+          setPhotos(data.photos || [null, null]); // Cargar las fotos actuales
         }
       } catch (error) {
         Alert.alert("Error", "No se pudo cargar el perfil");
@@ -86,10 +90,38 @@ export default function EditProfileScreen() {
     }
   };
 
-  // Guardar nombre e intereses
+  // Seleccionar una imagen
+  const pickImage = async (index: number) => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      quality: 1,
+    });
+
+    if (!result.canceled) {
+      const newPhotos = [...photos];
+      newPhotos[index] = result.assets[0].uri;
+      setPhotos(newPhotos);
+    }
+  };
+
+  // Eliminar una imagen
+  const removeImage = (index: number) => {
+    const newPhotos = [...photos];
+    newPhotos[index] = null;
+    setPhotos(newPhotos);
+  };
+
+  // Guardar nombre, intereses y fotos
   const handleSave = async () => {
     if (!name.trim()) {
       Alert.alert("Nombre requerido", "Por favor ingresa tu nombre completo");
+      return;
+    }
+
+    const selectedPhotos = photos.filter((p) => p !== null) as string[];
+    if (selectedPhotos.length < 2) {
+      Alert.alert("Fotos requeridas", "Por favor agrega al menos dos fotos");
       return;
     }
 
@@ -98,7 +130,21 @@ export default function EditProfileScreen() {
       const uid = auth.currentUser?.uid;
       if (!uid) throw new Error("Usuario no autenticado");
 
-      await setDoc(doc(db, "users", uid), { name, interests: selectedInterests }, { merge: true });
+      const downloadURLs: string[] = [];
+
+      // Subir imágenes a Firebase Storage y obtener las URLs
+      for (let i = 0; i < selectedPhotos.length; i++) {
+        const response = await fetch(selectedPhotos[i]);
+        const blob = await response.blob();
+        const filename = `users/${uid}/photo${i + 1}.jpg`;
+        const imageRef = ref(storage, filename);
+        await uploadBytes(imageRef, blob);
+        const url = await getDownloadURL(imageRef);
+        downloadURLs.push(url);
+      }
+
+      // Guardar datos en Firestore
+      await setDoc(doc(db, "users", uid), { name, interests: selectedInterests, photos: downloadURLs }, { merge: true });
 
       Alert.alert("Éxito", "Perfil actualizado");
       router.back();
@@ -141,6 +187,24 @@ export default function EditProfileScreen() {
             <Text style={[styles.tagText, selectedInterests.includes(item) && styles.selectedTagText]}>
               {item}
             </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      <Text style={styles.sectionTitle}>Fotos</Text>
+      <View style={styles.photosContainer}>
+        {photos.map((uri, index) => (
+          <TouchableOpacity key={index} style={styles.photoBox} onPress={() => pickImage(index)}>
+            {uri ? (
+              <View style={styles.photoWrapper}>
+                <Image source={{ uri }} style={styles.photo} />
+                <TouchableOpacity style={styles.removeButton} onPress={() => removeImage(index)}>
+                  <Text style={styles.removeText}>✕</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <Text style={styles.plusText}>＋</Text>
+            )}
           </TouchableOpacity>
         ))}
       </View>
@@ -214,6 +278,48 @@ const styles = StyleSheet.create({
   selectedTagText: {
     color: "#a855f7",
     fontWeight: "bold",
+  },
+  photosContainer: {
+    flexDirection: "row",
+    gap: 10,
+    marginBottom: 20,
+  },
+  photoBox: {
+    width: "30%",
+    aspectRatio: 1,
+    backgroundColor: "#e5e5f0",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 12,
+    borderRadius: 8,
+  },
+  photoWrapper: {
+    width: "100%",
+    height: "100%",
+    borderRadius: 8,
+    position: "relative",
+  },
+  photo: {
+    width: "100%",
+    height: "100%",
+    borderRadius: 8,
+  },
+  removeButton: {
+    position: "absolute",
+    top: 4,
+    right: 4,
+    backgroundColor: "#fff",
+    borderRadius: 10,
+    paddingHorizontal: 4,
+  },
+  removeText: {
+    color: "#ff4d4d",
+    fontSize: 16,
+    fontWeight: "bold",
+  },
+  plusText: {
+    fontSize: 24,
+    color: "#9747FF",
   },
   buttonWrapper: {
     marginBottom: 30,
