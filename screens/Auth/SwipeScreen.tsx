@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Image } from 'react-native';
+import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import Swiper from 'react-native-deck-swiper';
+import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import BottomNav from '@/components/BottomNav';
-import { collection, getDocs, query, where, doc, getDoc } from 'firebase/firestore';
+import { collection, addDoc, getDocs, query, where, doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '@/services/firebase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -22,7 +23,6 @@ export default function SwipeScreen() {
   useEffect(() => {
     async function fetchMatchedUsers() {
       try {
-        // Obtener el UID del usuario autenticado desde AsyncStorage
         const userId = await AsyncStorage.getItem("userId");
         if (!userId) throw new Error("Usuario no autenticado");
 
@@ -33,8 +33,6 @@ export default function SwipeScreen() {
           const userData = userSnap.data();
           const interests: string[] = userData.interests;
           const gender: string = userData.gender;
-
-          // Consultar usuarios del sexo opuesto con intereses coincidentes
           const oppositeGender = gender === "HOMBRE" ? "MUJER" : "HOMBRE";
           const usersRef = collection(db, 'users');
           const q = query(
@@ -61,60 +59,118 @@ export default function SwipeScreen() {
     fetchMatchedUsers();
   }, []);
 
+  const handleSwipe = async (toUserId: string, type: string) => {
+  try {
+    const fromUserId = await AsyncStorage.getItem("userId");
+    const timestamp = new Date().toISOString();
+
+    if (!fromUserId) return;
+
+    // Registrar el swipe en la colección "swipes"
+    await addDoc(collection(db, "swipes"), {
+      fromUserId,
+      toUserId,
+      tipo: type,
+      fecha: timestamp,
+    });
+
+    // Verificar si hay un match
+    if (type === "match") {
+      const q = query(
+        collection(db, "swipes"),
+        where("fromUserId", "==", toUserId),
+        where("toUserId", "==", fromUserId),
+        where("tipo", "==", "match")
+      );
+      const snapshot = await getDocs(q);
+
+      if (!snapshot.empty) {
+        // Crear el match en la colección "matches"
+        await setDoc(doc(collection(db, "matches")), {
+          chatid: `${fromUserId}_${toUserId}`,
+          howMatch: timestamp,
+          usersId: [fromUserId, toUserId],
+        });
+
+        console.log("✅ Match confirmado");
+
+        // Actualizar la lista de usuarios para que el usuario coincidente desaparezca
+        setUsers((prevUsers) => prevUsers.filter((user) => user.id !== toUserId));
+      }
+    } else {
+      // En caso de rechazo, eliminar el usuario de la lista
+      setUsers((prevUsers) => prevUsers.filter((user) => user.id !== toUserId));
+    }
+
+    console.log("Registro de swipe exitoso");
+  } catch (error) {
+    console.error("Error al registrar el swipe:", error);
+  }
+};
+
+
   if (loading) {
     return <Text>Cargando usuarios...</Text>;
   }
 
- return (
-  <View style={styles.container}>
-    <Swiper
-      cards={users}
-      renderCard={(card) => (
-        <View style={styles.card}>
-          {Array.isArray(card?.photos) && card.photos.length > 0 ? (
-            card.photos.map((photo: string, index: number) => (
-              <Image key={index} source={{ uri: photo }} style={styles.image} />
-            ))
-          ) : (
-            <Text style={styles.noImageText}>Sin fotos disponibles</Text>
-          )}
-          <Text style={styles.name}>{card?.name || "Usuario desconocido"}</Text>
-          <Text>{calculateAge(card?.birthdate || "2000-01-01")} años</Text>
-        </View>
-      )}
-      onSwipedAll={() => console.log("No hay más usuarios")}
-      backgroundColor={'#f5f5f5'}
-      stackSize={3}
-    />
-    <BottomNav />
-  </View>
-);
+  return (
+    <View style={styles.container}>
+      <Swiper
+        cards={users}
+        renderCard={(card) => (
+          <View style={styles.card}>
+            {card?.photos?.length > 0 ? (
+              card.photos.map((photo, index) => (
+                <Image key={index} source={{ uri: photo }} style={styles.image} />
+              ))
+            ) : (
+              <Text style={styles.noImageText}>Sin fotos disponibles</Text>
+            )}
+            <Text style={styles.name}>{card?.name || "Usuario desconocido"}</Text>
+            <Text>{calculateAge(card?.birthdate || "2000-01-01")} años</Text>
 
+            {/* Botón de Información */}
+            <TouchableOpacity
+              style={styles.infoButton}
+              onPress={() => router.push(`/profile/profile-screen?id=${card.id}`)}
+            >
+              <Ionicons name="information-circle-outline" size={30} color="#333" />
+            </TouchableOpacity>
 
+            {/* Botón de Match */}
+           
+<TouchableOpacity
+  style={styles.matchButton}
+  onPress={() => handleSwipe(card.id, "match")}
+>
+  <MaterialIcons name="check-circle" size={30} color="#28a745" />
+</TouchableOpacity>
+
+          </View>
+        )}
+        onSwipedRight={(index) => handleSwipe(users[index].id, "match")}
+        onSwipedLeft={(index) => handleSwipe(users[index].id, "reject")}
+        onSwipedAll={() => console.log("No hay más usuarios")}
+        backgroundColor={'#f5f5f5'}
+        stackSize={3}
+      />
+      <BottomNav />
+    </View>
+  );
 }
 
 function calculateAge(birthdate: string): number {
   if (!birthdate) return 0;
-  
-  // Verificamos el formato DD/MM/YYYY y lo convertimos a una fecha válida
   const [day, month, year] = birthdate.split('/').map(Number);
-
-  if (!day || !month || !year) return 0;
-
-  const birthDate = new Date(year, month - 1, day); // Meses en JavaScript son 0-11
+  const birthDate = new Date(year, month - 1, day);
   const today = new Date();
-
   let age = today.getFullYear() - birthDate.getFullYear();
   const monthDiff = today.getMonth() - birthDate.getMonth();
-
-  // Ajustamos la edad si aún no ha llegado el cumpleaños de este año
   if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
     age--;
   }
-
   return age;
 }
-
 
 const styles = StyleSheet.create({
   container: {
@@ -132,16 +188,24 @@ const styles = StyleSheet.create({
     padding: 20,
     margin: 10,
   },
-   image: {
-    width: 200, 
-    height: 300,  
+  image: {
+    width: 200,
+    height: 300,
     borderRadius: 10,
-    marginBottom: 10,  // Separación respecto al nombre
+    marginBottom: 10,
   },
   name: {
     fontSize: 20,
     fontWeight: 'bold',
     marginTop: 10,
+  },
+  infoButton: {
+    marginTop: 10,
+    alignItems: 'center',
+  },
+  matchButton: {
+    marginTop: 10,
+    alignItems: 'center',
   },
   noImageText: {
     fontSize: 16,

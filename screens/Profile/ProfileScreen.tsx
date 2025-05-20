@@ -1,134 +1,175 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, Image, ScrollView, FlatList, ActivityIndicator, TouchableOpacity } from 'react-native';
-import { auth, db } from '@/services/firebase';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, Image, FlatList, Modal, TouchableOpacity } from 'react-native';
+import { useLocalSearchParams } from 'expo-router';
 import { doc, getDoc } from 'firebase/firestore';
-import BottomNav from '@/components/BottomNav';
-import { useRouter } from 'expo-router';
-import { StyleSheet } from 'react-native';
+import { db } from '@/services/firebase';
 
+interface UserProfile {
+  name: string;
+  birthdate: string;
+  photos: string[];
+  interests: string[];
+}
 
 export default function ProfileScreen() {
-  const [userData, setUserData] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const router = useRouter();
+  const { id } = useLocalSearchParams();
+  const [user, setUser] = useState<UserProfile | null>(null);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchUserData = async () => {
-      const uid = auth.currentUser?.uid;
-      if (!uid) {
-        setLoading(false);
-        return;
+    async function fetchUserProfile() {
+      if (id) {
+        try {
+          const userRef = doc(db, 'users', id.toString());
+          const userSnap = await getDoc(userRef);
+          if (userSnap.exists()) {
+            setUser(userSnap.data() as UserProfile);
+          }
+        } catch (error) {
+          console.error("Error al cargar el perfil del usuario:", error);
+        }
       }
+    }
 
-      const ref = doc(db, 'users', uid);
-      const snap = await getDoc(ref);
+    fetchUserProfile();
+  }, [id]);
 
-      if (snap.exists()) {
-        setUserData(snap.data());
-      }
-
-      setLoading(false);
-    };
-
-    fetchUserData();
-  }, []);
-
-  const calculateAge = (birthdate: string) => {
+  function calculateAge(birthdate: string): number {
+    if (!birthdate) return 0;
     const [day, month, year] = birthdate.split('/').map(Number);
-    const birth = new Date(year, month - 1, day);
-    const now = new Date();
-    let age = now.getFullYear() - birth.getFullYear();
-    const m = now.getMonth() - birth.getMonth();
-    if (m < 0 || (m === 0 && now.getDate() < birth.getDate())) {
+    const birthDate = new Date(year, month - 1, day);
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
       age--;
     }
     return age;
-  };
-
-  if (loading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#FF6C00" />
-      </View>
-    );
   }
-
-  if (!userData) {
-    return (
-      <View style={styles.container}>
-        <Text>No se encontraron datos del usuario.</Text>
-        <TouchableOpacity onPress={() => router.push("/profile/edit")}> {/* Ajustado */}
-          <Text style={{ color: '#FF6C00', fontWeight: 'bold' }}>Completar perfil</Text>
-        </TouchableOpacity>
-        <BottomNav />
-      </View>
-    );
-  }
-
-  const { name, gender, birthdate, photos = [] } = userData;
-  const age = calculateAge(birthdate);
 
   return (
     <View style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scroll}>
-        {photos.length > 0 ? (
-          <FlatList
-            data={photos}
-            keyExtractor={(item, index) => index.toString()}
-            horizontal
-            pagingEnabled
-            showsHorizontalScrollIndicator={false}
-            renderItem={({ item }) => (
-              <Image source={{ uri: item }} style={styles.image} />
+      {user && (
+        <>
+          <View style={styles.header}>
+            {user.photos.length > 0 ? (
+              <Image source={{ uri: user.photos[0] }} style={styles.mainPhoto} />
+            ) : (
+              <Text style={styles.noImageText}>Sin foto disponible</Text>
             )}
+            <Text style={styles.name}>{user.name}</Text>
+            <Text style={styles.age}>{calculateAge(user.birthdate)} años</Text>
+            <Text style={styles.sectionTitle}>Intereses:</Text>
+            {user.interests.map((interest, index) => (
+              <Text key={index} style={styles.interest}>{interest}</Text>
+            ))}
+            <Text style={styles.sectionTitle}>Galería:</Text>
+          </View>
+
+          <FlatList
+            data={user.photos.slice(1)}
+            keyExtractor={(item, index) => index.toString()}
+            numColumns={3}
+            renderItem={({ item }) => (
+              <TouchableOpacity onPress={() => setSelectedImage(item)}>
+                <Image source={{ uri: item }} style={styles.galleryImage} />
+              </TouchableOpacity>
+            )}
+            contentContainerStyle={styles.galleryContainer}
           />
-        ) : (
-          <Text>No has subido fotos aún.</Text>
-        )}
 
-        <Text style={styles.name}>{name}</Text>
-        <Text style={styles.profession}>{gender}</Text>
-        <Text style={styles.university}>{age} años</Text>
-      </ScrollView>
-
-      <BottomNav />
+          {/* Modal para la imagen ampliada */}
+          <Modal visible={!!selectedImage} transparent={true} animationType="fade">
+            <View style={styles.modalBackground}>
+              <TouchableOpacity style={styles.closeButton} onPress={() => setSelectedImage(null)}>
+                <Text style={styles.closeText}>✕</Text>
+              </TouchableOpacity>
+              <Image source={{ uri: selectedImage || '' }} style={styles.fullScreenImage} />
+            </View>
+          </Modal>
+        </>
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+  container: {
+    padding: 15,
     backgroundColor: '#fff',
+    flex: 1,
   },
-  scroll: {
-    paddingTop: 60,
-    paddingBottom: 100,
+  header: {
     alignItems: 'center',
-    paddingHorizontal: 20,
+    marginBottom: 20,
+    padding: 20,
+    backgroundColor: '#f9f9f9',
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
   },
-  image: {
-    width: 300,
-    height: 400,
-    borderRadius: 20,
-    margin: 10,
+  mainPhoto: {
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+    marginBottom: 10,
   },
   name: {
-    fontSize: 24,
+    fontSize: 26,
     fontWeight: 'bold',
-    marginTop: 10,
+    marginTop: 5,
+    color: '#333',
   },
-  profession: {
+  age: {
+    fontSize: 20,
+    color: '#555',
+  },
+  sectionTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    marginVertical: 10,
+    color: '#480081',
+  },
+  interest: {
+    fontSize: 18,
+    color: '#333',
+    marginLeft: 10,
+    marginBottom: 5,
+  },
+  galleryContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  galleryImage: {
+    width: 100,
+    height: 100,
+    borderRadius: 10,
+    margin: 5,
+  },
+  modalBackground: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fullScreenImage: {
+    width: '90%',
+    height: '70%',
+    borderRadius: 20,
+  },
+  closeButton: {
+    position: 'absolute',
+    top: 30,
+    right: 30,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: 20,
+    padding: 5,
+  },
+  closeText: {
+    color: '#fff',
+    fontSize: 20,
+  },
+  noImageText: {
     fontSize: 16,
-    color: '#666',
-    marginTop: 4,
-  },
-  university: {
-    fontSize: 14,
-    color: '#999',
-    marginBottom: 30,
+    color: '#888',
   },
 });
