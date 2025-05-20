@@ -16,6 +16,7 @@ export default function EventsScreen() {
   const [attendingIds, setAttendingIds] = useState<string[]>([]);
   const [attendeeCounts, setAttendeeCounts] = useState<{ [key: string]: number }>({});
 
+
   useEffect(() => {
     const unsubEventList = listenToEvents(async (data) => {
       setEvents(data);
@@ -61,7 +62,7 @@ export default function EventsScreen() {
           const now = new Date();
           const endDate = new Date(eventDate.getTime() + 5 * 60 * 60 * 1000);
           const isOngoing = now >= eventDate && now <= endDate;
-
+          const isUpcoming = now < eventDate;
           return (
             <View key={event.id} style={styles.eventCard}>
               <Image source={{ uri: event.imageUrl }} style={styles.eventImage} />
@@ -69,8 +70,9 @@ export default function EventsScreen() {
                 <View>
                   <Text style={styles.eventName}>{event.title}</Text>
                   <Text style={styles.eventMeta}>
-                    {isOngoing ? "Evento en curso" : `${event.date} · ${event.time}`}
+                    {isUpcoming ? "Próximamente" : isOngoing ? "Evento en curso" : `${event.date} · ${event.time}`}
                   </Text>
+
                   <Text style={styles.eventMeta}>{event.location}</Text>
                 </View>
 
@@ -82,7 +84,6 @@ export default function EventsScreen() {
                         ? prev.filter((id) => id !== event.id)
                         : [...prev, event.id]
                     );
-                    // No hace falta actualizar el contador manualmente
                   }}
                 >
                   <LinearGradient
@@ -130,7 +131,7 @@ const styles = StyleSheet.create({
     color: "#666",
     marginTop: 4,
   },
-  
+
   logo: {
     width: 160,
     height: 60,

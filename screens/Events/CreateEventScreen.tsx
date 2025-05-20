@@ -28,7 +28,7 @@ export default function CreateEventScreen() {
       setImage(result.assets[0].uri);
     }
   };
-
+  
 
   const handleSubmit = async () => {
     console.log("handleSubmit fue llamado");
@@ -47,7 +47,6 @@ export default function CreateEventScreen() {
 
       const dateStr = selectedDate.toLocaleDateString();
 
-      // ✅ Validación: ¿ya tiene evento ese día?
       const exists = await hasEventOnDate(uid, dateStr);
       if (exists) {
         alert("Ya has creado un evento para esta fecha.");

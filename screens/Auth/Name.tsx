@@ -1,4 +1,13 @@
-import { View, Text, TouchableOpacity, TextInput, StyleSheet } from "react-native";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  TextInput,
+  StyleSheet,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
+} from "react-native";
 import { useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { useState } from "react";
@@ -6,7 +15,6 @@ import { auth, db } from "../../services/firebase";
 import { doc, setDoc } from "firebase/firestore";
 import { Alert } from "react-native";
 
-// Lista de carreras
 const CAREERS = [
   "Arquitectura", "Ingeniería Civil", "Medicina", "Odontología", "Psicología",
   "Derecho", "Administración de Empresas", "Contaduría Pública",
@@ -50,68 +58,78 @@ export default function NameScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <TouchableOpacity onPress={() => router.back()} style={styles.backArrow}>
-        <Text style={{ fontSize: 18 }}>◀</Text>
-      </TouchableOpacity>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      style={styles.container}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 60 : 0}
+    >
+      <ScrollView
+        contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 100, paddingBottom: 40 }}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <TouchableOpacity onPress={() => router.back()} style={styles.backArrow}>
+          <Text style={{ fontSize: 18 }}>◀</Text>
+        </TouchableOpacity>
 
-      <Text style={styles.title}>Mi nombre es:</Text>
-      <TextInput
-        placeholder="Nombre Apellido"
-        placeholderTextColor="#999"
-        value={name}
-        onChangeText={setName}
-        style={styles.input}
-      />
+        <Text style={styles.title}>Mi nombre es:</Text>
+        <TextInput
+          placeholder="Nombre Apellido"
+          placeholderTextColor="#999"
+          value={name}
+          onChangeText={setName}
+          style={styles.input}
+          returnKeyType="done"
+        />
 
-      <Text style={styles.title}>Selecciona tu carrera:</Text>
-      <View style={styles.tagsContainer}>
-        {CAREERS.map((career) => (
-          <TouchableOpacity
-            key={career}
-            style={[
-              styles.tag,
-              selectedCareer === career && styles.selectedTag,
-            ]}
-            onPress={() => setSelectedCareer(career)}
-          >
-            <Text
+        <Text style={styles.title}>Selecciona tu carrera:</Text>
+        <View style={styles.tagsContainer}>
+          {CAREERS.map((career) => (
+            <TouchableOpacity
+              key={career}
               style={[
-                styles.tagText,
-                selectedCareer === career && styles.selectedTagText,
+                styles.tag,
+                selectedCareer === career && styles.selectedTag,
               ]}
+              onPress={() => setSelectedCareer(career)}
             >
-              {career}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+              <Text
+                style={[
+                  styles.tagText,
+                  selectedCareer === career && styles.selectedTagText,
+                ]}
+              >
+                {career}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
 
-      <TouchableOpacity onPress={handleContinue} style={styles.buttonWrapper}>
-        <LinearGradient
-          colors={["#4eff6a", "#ff87d2"]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          style={styles.button}
-        >
-          <Text style={styles.buttonText}>CONTINUAR</Text>
-        </LinearGradient>
-      </TouchableOpacity>
-    </View>
+        <TouchableOpacity onPress={handleContinue} style={styles.buttonWrapper}>
+          <LinearGradient
+            colors={["#4eff6a", "#ff87d2"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.button}
+          >
+            <Text style={styles.buttonText}>CONTINUAR</Text>
+          </LinearGradient>
+        </TouchableOpacity>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: "#fff",
     flex: 1,
-    paddingHorizontal: 24,
-    paddingTop: 100,
+    backgroundColor: "#fff",
   },
   backArrow: {
     position: "absolute",
     top: 60,
     left: 24,
+    zIndex: 10,
   },
   title: {
     fontSize: 22,
