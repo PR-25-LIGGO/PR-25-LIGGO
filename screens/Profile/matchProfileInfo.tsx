@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Image, FlatList, Modal, TouchableOpacity } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
-import { doc, getDoc } from 'firebase/firestore';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { doc, getDoc, setDoc, updateDoc, query, where, getDocs, collection } from 'firebase/firestore';
 import { db } from '@/services/firebase';
+import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface UserProfile {
   name: string;
@@ -11,10 +13,11 @@ interface UserProfile {
   interests: string[];
 }
 
-export default function ProfileScreen() {
+export default function MatchProfileInfo() {
   const { id } = useLocalSearchParams();
   const [user, setUser] = useState<UserProfile | null>(null);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const router = useRouter();
 
   useEffect(() => {
     async function fetchUserProfile() {
@@ -30,9 +33,72 @@ export default function ProfileScreen() {
         }
       }
     }
-
     fetchUserProfile();
   }, [id]);
+
+  async function handleMatch(matchType: string) {
+  try {
+    const userId = id?.toString();
+    const fromUserId = await AsyncStorage.getItem("userId");
+    if (!fromUserId || !userId) return;
+
+    const timestamp = new Date().toISOString();
+    const swipeDocRef = doc(db, "swipes", `${fromUserId}_${userId}`);
+
+    // Verificar si el documento ya existe en la colección 'swipes'
+    const existingDocSnap = await getDoc(swipeDocRef);
+
+    if (existingDocSnap.exists()) {
+      // Actualizar el estado del documento existente
+      await updateDoc(swipeDocRef, {
+        tipo: matchType,
+        fecha: timestamp,
+      });
+      console.log(`🔄 Documento actualizado con el estado: ${matchType}`);
+    } else {
+      // Crear el documento si no existe
+      await setDoc(swipeDocRef, {
+        fromUserId,
+        toUserId: userId,
+        tipo: matchType,
+        fecha: timestamp,
+      });
+      console.log(`✅ Nuevo documento creado con el estado: ${matchType}`);
+    }
+
+    if (matchType === "match") {
+      // Verificar si ambos hicieron match
+      const q = query(
+        collection(db, "swipes"),
+        where("fromUserId", "==", userId),
+        where("toUserId", "==", fromUserId),
+        where("tipo", "==", "match")
+      );
+      const snapshot = await getDocs(q);
+
+      if (!snapshot.empty) {
+        const matchDocRef = doc(collection(db, "matches"), `${fromUserId}_${userId}`);
+        await setDoc(matchDocRef, {
+          chatid: `${fromUserId}_${userId}`,
+          howMatch: timestamp,
+          usersId: [fromUserId, userId],
+        });
+        console.log("✅ Match confirmado");
+      }
+    }
+
+    if (matchType === "reject") {
+      // Actualizar la interfaz para que desaparezca de New Matches
+      console.log("🚫 Rechazo registrado");
+      setUser(null);
+      router.back();
+    }
+  } catch (error) {
+    console.error("Error al actualizar el estado de match:", error);
+  }
+}
+
+
 
   function calculateAge(birthdate: string): number {
     if (!birthdate) return 0;
@@ -67,7 +133,7 @@ export default function ProfileScreen() {
           </View>
 
           <FlatList
-            data={user.photos.slice(1)}
+            data={user.photos}
             keyExtractor={(item, index) => index.toString()}
             numColumns={3}
             renderItem={({ item }) => (
@@ -78,7 +144,6 @@ export default function ProfileScreen() {
             contentContainerStyle={styles.galleryContainer}
           />
 
-          {/* Modal para la imagen ampliada */}
           <Modal visible={!!selectedImage} transparent={true} animationType="fade">
             <View style={styles.modalBackground}>
               <TouchableOpacity style={styles.closeButton} onPress={() => setSelectedImage(null)}>
@@ -87,6 +152,15 @@ export default function ProfileScreen() {
               <Image source={{ uri: selectedImage || '' }} style={styles.fullScreenImage} />
             </View>
           </Modal>
+
+          <View style={styles.buttonsContainer}>
+            <TouchableOpacity onPress={() => handleMatch("reject")} style={styles.rejectButton}>
+              <MaterialIcons name="cancel" size={30} color="red" />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => handleMatch("match")} style={styles.matchButton}>
+              <Ionicons name="checkmark-circle" size={30} color="green" />
+            </TouchableOpacity>
+          </View>
         </>
       )}
     </View>
@@ -102,16 +176,18 @@ const styles = StyleSheet.create({
   header: {
     alignItems: 'center',
     marginBottom: 20,
-    padding: 20,
-    backgroundColor: '#f9f9f9',
-    borderBottomLeftRadius: 30,
-    borderBottomRightRadius: 30,
   },
   mainPhoto: {
     width: 150,
     height: 150,
     borderRadius: 75,
     marginBottom: 10,
+  },
+  noImageText: {
+    fontSize: 16,
+    color: '#888',
+    marginTop: 20,
+    textAlign: 'center',
   },
   name: {
     fontSize: 26,
@@ -131,19 +207,7 @@ const styles = StyleSheet.create({
   },
   interest: {
     fontSize: 18,
-    color: '#333',
-    marginLeft: 10,
     marginBottom: 5,
-  },
-  galleryContainer: {
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  galleryImage: {
-    width: 100,
-    height: 100,
-    borderRadius: 10,
-    margin: 5,
   },
   modalBackground: {
     flex: 1,
@@ -168,8 +232,29 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 20,
   },
-  noImageText: {
-    fontSize: 16,
-    color: '#888',
+  buttonsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginTop: 20,
+  },
+  matchButton: {
+    backgroundColor: '#d4f0d4',
+    padding: 10,
+    borderRadius: 20,
+  },
+  rejectButton: {
+    backgroundColor: '#f0d4d4',
+    padding: 10,
+    borderRadius: 20,
+  },
+  galleryContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  galleryImage: {
+    width: 100,
+    height: 100,
+    borderRadius: 10,
+    margin: 5,
   },
 });

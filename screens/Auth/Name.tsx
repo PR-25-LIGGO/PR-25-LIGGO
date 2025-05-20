@@ -1,37 +1,54 @@
-import { View, Text, TextInput, TouchableOpacity, StyleSheet } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
+import { View, Text, TouchableOpacity, TextInput, StyleSheet } from "react-native";
 import { useRouter } from "expo-router";
+import { LinearGradient } from "expo-linear-gradient";
 import { useState } from "react";
-import { auth } from "../../services/firebase";
-import { db } from "../../services/firebase";
-import { doc, setDoc, updateDoc } from "firebase/firestore";
+import { auth, db } from "../../services/firebase";
+import { doc, setDoc } from "firebase/firestore";
 import { Alert } from "react-native";
 
+// Lista de carreras
+const CAREERS = [
+  "Arquitectura", "Ingeniería Civil", "Medicina", "Odontología", "Psicología",
+  "Derecho", "Administración de Empresas", "Contaduría Pública",
+  "Ingeniería de Sistemas", "Ingeniería Electrónica", "Ingeniería Industrial",
+  "Diseño Gráfico", "Comunicación Social", "Publicidad y Marketing",
+  "Trabajo Social", "Educación", "Veterinaria", "Biotecnología",
+  "Fisioterapia", "Bioquímica", "Ciencias Políticas", "Antropología",
+  "Arquitectura de Interiores", "Nutrición", "Turismo y Hotelería",
+  "Enfermería", "Finanzas", "Relaciones Internacionales", "Criminología",
+  "Arte y Cultura"
+];
 
 export default function NameScreen() {
   const router = useRouter();
   const [name, setName] = useState("");
+  const [selectedCareer, setSelectedCareer] = useState<string | null>(null);
+
   const handleContinue = async () => {
     if (!name.trim()) {
       Alert.alert("Nombre requerido", "Por favor ingresa tu nombre completo");
       return;
     }
-  
+    if (!selectedCareer) {
+      Alert.alert("Carrera requerida", "Por favor selecciona tu carrera");
+      return;
+    }
+
     const uid = auth.currentUser?.uid;
     if (!uid) {
       Alert.alert("Error", "No hay usuario autenticado");
       return;
     }
-  
+
     try {
       const userRef = doc(db, "users", uid);
-      await setDoc(userRef, { name }, { merge: true }); // merge evita sobrescribir
-      router.push("/auth/birthday"); // Avanza a la siguiente pantalla
+      await setDoc(userRef, { name, career: selectedCareer }, { merge: true });
+      router.push("/auth/birthday");
     } catch (error: any) {
       Alert.alert("Error al guardar", error.message);
     }
   };
-  
+
   return (
     <View style={styles.container}>
       <TouchableOpacity onPress={() => router.back()} style={styles.backArrow}>
@@ -39,7 +56,6 @@ export default function NameScreen() {
       </TouchableOpacity>
 
       <Text style={styles.title}>Mi nombre es:</Text>
-
       <TextInput
         placeholder="Nombre Apellido"
         placeholderTextColor="#999"
@@ -48,9 +64,28 @@ export default function NameScreen() {
         style={styles.input}
       />
 
-      <Text style={styles.note}>
-        Es recomendable poner nombre completo, igual se puede cambiar más adelante
-      </Text>
+      <Text style={styles.title}>Selecciona tu carrera:</Text>
+      <View style={styles.tagsContainer}>
+        {CAREERS.map((career) => (
+          <TouchableOpacity
+            key={career}
+            style={[
+              styles.tag,
+              selectedCareer === career && styles.selectedTag,
+            ]}
+            onPress={() => setSelectedCareer(career)}
+          >
+            <Text
+              style={[
+                styles.tagText,
+                selectedCareer === career && styles.selectedTagText,
+              ]}
+            >
+              {career}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
 
       <TouchableOpacity onPress={handleContinue} style={styles.buttonWrapper}>
         <LinearGradient
@@ -81,7 +116,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 22,
     fontWeight: "bold",
-    marginBottom: 30,
+    marginBottom: 10,
     textAlign: "center",
   },
   input: {
@@ -89,14 +124,34 @@ const styles = StyleSheet.create({
     borderBottomColor: "#ccc",
     paddingVertical: 10,
     fontSize: 16,
-    marginBottom: 10,
+    marginBottom: 20,
   },
-  note: {
-    fontSize: 12,
-    color: "#666",
-    marginBottom: 30,
+  tagsContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    rowGap: 10,
+  },
+  tag: {
+    borderWidth: 1,
+    borderColor: "#aaa",
+    borderRadius: 30,
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+  },
+  selectedTag: {
+    borderColor: "#a855f7",
+  },
+  tagText: {
+    fontSize: 13,
+    color: "#333",
+  },
+  selectedTagText: {
+    color: "#a855f7",
+    fontWeight: "bold",
   },
   buttonWrapper: {
+    marginTop: 30,
     alignItems: "center",
   },
   button: {
