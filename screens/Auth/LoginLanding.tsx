@@ -14,7 +14,6 @@ export default function LoginLanding() {
       style={styles.container}
     >
     
-
       {/* Logo */}
       <Image source={require('@/assets/logo-liggo.png')} style={styles.logo} resizeMode="contain" />
 

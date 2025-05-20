@@ -1,11 +1,19 @@
-import React, { useEffect, useState, useCallback } from "react";
-import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, Image, KeyboardAvoidingView, Platform } from "react-native";
+import React, { useEffect, useState, useRef } from "react";
+import {
+  SafeAreaView,
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  FlatList,
+  StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
+} from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import { collection, addDoc, onSnapshot, orderBy, query } from "firebase/firestore";
 import { db } from "@/services/firebase";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-
-const { id } = useLocalSearchParams(); // este es el ID del otro usuario
 
 interface Message {
   id: string;
@@ -16,12 +24,13 @@ interface Message {
 }
 
 export default function UserChat() {
-  const { id } = useLocalSearchParams(); // id del otro usuario
+  const { chatId, name } = useLocalSearchParams();
   const [userId, setUserId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
+  const flatListRef = useRef<FlatList>(null);
 
-  const chatId = userId && id ? [userId, id].sort().join("_") : null;
+  if (typeof chatId !== "string") return <Text>Error: chatId inválido</Text>;
 
   useEffect(() => {
     AsyncStorage.getItem("userId").then(setUserId);
@@ -48,90 +57,145 @@ export default function UserChat() {
   }, [chatId]);
 
   const sendMessage = async () => {
-    if (!message.trim() || !userId || !id || !chatId) return;
+    if (!message.trim() || !userId) return;
 
     await addDoc(collection(db, "matches", chatId, "messages"), {
       text: message,
       from: userId,
-      to: id,
+      to: "",
       timestamp: new Date(),
     });
 
     setMessage("");
   };
 
+  useEffect(() => {
+    if (flatListRef.current && messages.length > 0) {
+      flatListRef.current.scrollToEnd({ animated: true });
+    }
+  }, [messages]);
+
   const renderItem = ({ item }: { item: Message }) => {
     const isMe = item.from === userId;
     return (
-      <View style={[styles.messageBubble, isMe ? styles.myMessage : styles.theirMessage]}>
+      <View
+        style={[
+          styles.messageBubble,
+          isMe ? styles.myMessage : styles.theirMessage,
+        ]}
+      >
         <Text style={styles.messageText}>{item.text}</Text>
       </View>
     );
   };
 
   return (
-    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-      <FlatList
-        data={messages}
-        keyExtractor={(item) => item.id}
-        renderItem={renderItem}
-        contentContainerStyle={styles.chatContainer}
-      />
-
-      <View style={styles.inputContainer}>
-        <TextInput
-          style={styles.input}
-          placeholder="Escribe un mensaje..."
-          value={message}
-          onChangeText={setMessage}
-        />
-        <TouchableOpacity onPress={sendMessage} style={styles.sendButton}>
-          <Text style={{ color: "white" }}>Enviar</Text>
-        </TouchableOpacity>
+    <SafeAreaView style={styles.safeArea}>
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>{name || "Chat"}</Text>
       </View>
-    </KeyboardAvoidingView>
+
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
+      >
+        <FlatList
+          ref={flatListRef}
+          data={messages}
+          keyExtractor={(item) => item.id}
+          renderItem={renderItem}
+          contentContainerStyle={styles.chatContainer}
+        />
+
+        <View style={styles.inputContainer}>
+          <TextInput
+            style={styles.input}
+            placeholder="Escribe un mensaje..."
+            placeholderTextColor="#999"
+            value={message}
+            onChangeText={setMessage}
+          />
+          <TouchableOpacity onPress={sendMessage} style={styles.sendButton}>
+            <Text style={styles.sendButtonText}>Enviar</Text>
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff" },
-  chatContainer: { padding: 12 },
+  safeArea: {
+    flex: 1,
+    backgroundColor: "#fff",
+  },
+  header: {
+    height: 60,
+    justifyContent: "center",
+    alignItems: "center",
+    borderBottomWidth: 1,
+    borderBottomColor: "#ddd",
+    paddingHorizontal: 16,
+    backgroundColor: "#FF6C00",
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: "#fff",
+  },
+  container: {
+    flex: 1,
+    justifyContent: "flex-end",
+  },
+  chatContainer: {
+    padding: 12,
+    paddingBottom: 24,
+  },
   messageBubble: {
-    padding: 10,
-    borderRadius: 8,
-    marginVertical: 4,
+    padding: 12,
+    borderRadius: 12,
+    marginVertical: 6,
     maxWidth: "75%",
   },
   myMessage: {
-    backgroundColor: "#DCF8C6",
+    backgroundColor: "#FF6C00",
     alignSelf: "flex-end",
   },
   theirMessage: {
-    backgroundColor: "#E5E5EA",
+    backgroundColor: "#FF87D2",
     alignSelf: "flex-start",
   },
   messageText: {
     fontSize: 16,
+    color: "#fff",
   },
   inputContainer: {
     flexDirection: "row",
     borderTopWidth: 1,
     borderTopColor: "#ddd",
     padding: 8,
+    backgroundColor: "#fff",
     alignItems: "center",
   },
   input: {
     flex: 1,
     backgroundColor: "#f2f2f2",
-    borderRadius: 20,
+    borderRadius: 25,
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingVertical: 10,
     marginRight: 8,
+    fontSize: 16,
+    color: "#000",
   },
   sendButton: {
-    backgroundColor: "#007AFF",
+    backgroundColor: "#FF6C00",
     paddingVertical: 10,
     paddingHorizontal: 16,
-    borderRadius: 20,
+    borderRadius: 25,
+  },
+  sendButtonText: {
+    color: "#fff",
+    fontWeight: "bold",
   },
 });
