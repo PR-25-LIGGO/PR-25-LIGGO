@@ -18,6 +18,7 @@ interface User {
 export default function SwipeScreen() {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentIndex, setCurrentIndex] = useState(0);
   const router = useRouter();
 
   useEffect(() => {
@@ -60,54 +61,55 @@ export default function SwipeScreen() {
   }, []);
 
   const handleSwipe = async (toUserId: string, type: string) => {
-  try {
-    const fromUserId = await AsyncStorage.getItem("userId");
-    const timestamp = new Date().toISOString();
+    try {
+      const fromUserId = await AsyncStorage.getItem("userId");
+      const timestamp = new Date().toISOString();
 
-    if (!fromUserId) return;
+      if (!fromUserId) return;
 
-    // Registrar el swipe en la colección "swipes"
-    await addDoc(collection(db, "swipes"), {
-      fromUserId,
-      toUserId,
-      tipo: type,
-      fecha: timestamp,
-    });
+      // Registrar el swipe en la colección "swipes"
+      await addDoc(collection(db, "swipes"), {
+        fromUserId,
+        toUserId,
+        tipo: type,
+        fecha: timestamp,
+      });
 
-    // Verificar si hay un match
-    if (type === "match") {
-      const q = query(
-        collection(db, "swipes"),
-        where("fromUserId", "==", toUserId),
-        where("toUserId", "==", fromUserId),
-        where("tipo", "==", "match")
-      );
-      const snapshot = await getDocs(q);
+      // Verificar si hay un match
+      if (type === "match") {
+        const q = query(
+          collection(db, "swipes"),
+          where("fromUserId", "==", toUserId),
+          where("toUserId", "==", fromUserId),
+          where("tipo", "==", "match")
+        );
+        const snapshot = await getDocs(q);
 
-      if (!snapshot.empty) {
-        // Crear el match en la colección "matches"
-        await setDoc(doc(collection(db, "matches")), {
-          chatid: `${fromUserId}_${toUserId}`,
-          howMatch: timestamp,
-          usersId: [fromUserId, toUserId],
-        });
+        if (!snapshot.empty) {
+          // Crear el match en la colección "matches"
+          await setDoc(doc(collection(db, "matches")), {
+            chatid: `${fromUserId}_${toUserId}`,
+            howMatch: timestamp,
+            usersId: [fromUserId, toUserId],
+          });
 
-        console.log("✅ Match confirmado");
-
-        // Actualizar la lista de usuarios para que el usuario coincidente desaparezca
-        setUsers((prevUsers) => prevUsers.filter((user) => user.id !== toUserId));
+          console.log("✅ Match confirmado");
+        }
       }
-    } else {
-      // En caso de rechazo, eliminar el usuario de la lista
-      setUsers((prevUsers) => prevUsers.filter((user) => user.id !== toUserId));
+
+      console.log("Recahazo de swipe exitoso");
+    } catch (error) {
+      console.error("Error al registrar el swipe:", error);
     }
+  };
 
-    console.log("Registro de swipe exitoso");
-  } catch (error) {
-    console.error("Error al registrar el swipe:", error);
-  }
-};
-
+  const handleSwipeLeft = (index: number) => {
+    const userId = users[index]?.id;
+    if (userId) {
+      handleSwipe(userId, "reject");
+      setCurrentIndex(index + 1);
+    }
+  };
 
   if (loading) {
     return <Text>Cargando usuarios...</Text>;
@@ -117,6 +119,7 @@ export default function SwipeScreen() {
     <View style={styles.container}>
       <Swiper
         cards={users}
+        cardIndex={currentIndex}
         renderCard={(card) => (
           <View style={styles.card}>
             {card?.photos?.length > 0 ? (
@@ -129,27 +132,26 @@ export default function SwipeScreen() {
             <Text style={styles.name}>{card?.name || "Usuario desconocido"}</Text>
             <Text>{calculateAge(card?.birthdate || "2000-01-01")} años</Text>
 
-            {/* Botón de Información */}
-            <TouchableOpacity
-              style={styles.infoButton}
-              onPress={() => router.push(`/profile/profile-screen?id=${card.id}`)}
-            >
-              <Ionicons name="information-circle-outline" size={30} color="#333" />
-            </TouchableOpacity>
+            <View style={styles.actionButtons}>
+              {/* Botón de Información */}
+              <TouchableOpacity
+                style={styles.infoButton}
+                onPress={() => router.push(`/profile/profile-screen?id=${card.id}`)}
+              >
+                <Ionicons name="information-circle-outline" size={30} color="#333" />
+              </TouchableOpacity>
 
-            {/* Botón de Match */}
-           
-<TouchableOpacity
-  style={styles.matchButton}
-  onPress={() => handleSwipe(card.id, "match")}
->
-  <MaterialIcons name="check-circle" size={30} color="#28a745" />
-</TouchableOpacity>
-
+              {/* Botón de Match */}
+              <TouchableOpacity
+                style={styles.matchButton}
+                onPress={() => handleSwipe(card.id, "match")}
+              >
+                <MaterialIcons name="check-circle" size={30} color="#28a745" />
+              </TouchableOpacity>
+            </View>
           </View>
         )}
-        onSwipedRight={(index) => handleSwipe(users[index].id, "match")}
-        onSwipedLeft={(index) => handleSwipe(users[index].id, "reject")}
+        onSwipedLeft={(index) => handleSwipeLeft(index)} // Swipe izquierda = reject
         onSwipedAll={() => console.log("No hay más usuarios")}
         backgroundColor={'#f5f5f5'}
         stackSize={3}
@@ -199,13 +201,16 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginTop: 10,
   },
+  actionButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginTop: 20,
+  },
   infoButton: {
-    marginTop: 10,
-    alignItems: 'center',
+    marginHorizontal: 10,
   },
   matchButton: {
-    marginTop: 10,
-    alignItems: 'center',
+    marginHorizontal: 10,
   },
   noImageText: {
     fontSize: 16,

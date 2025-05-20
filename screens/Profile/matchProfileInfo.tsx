@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, Image, FlatList, Modal, TouchableOpacity } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { doc, getDoc, setDoc, updateDoc, addDoc, query, where, getDocs, collection } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, query, where, getDocs, collection } from 'firebase/firestore';
 import { db } from '@/services/firebase';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -16,6 +16,7 @@ interface UserProfile {
 export default function MatchProfileInfo() {
   const { id } = useLocalSearchParams();
   const [user, setUser] = useState<UserProfile | null>(null);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -36,48 +37,68 @@ export default function MatchProfileInfo() {
   }, [id]);
 
   async function handleMatch(matchType: string) {
-    try {
-      const userId = id?.toString();
-      const fromUserId = await AsyncStorage.getItem("userId");
-      if (!fromUserId || !userId) return;
+  try {
+    const userId = id?.toString();
+    const fromUserId = await AsyncStorage.getItem("userId");
+    if (!fromUserId || !userId) return;
 
-      const timestamp = new Date().toISOString();
-      const swipeDocRef = doc(db, "swipes", `${fromUserId}_${userId}`);
+    const timestamp = new Date().toISOString();
+    const swipeDocRef = doc(db, "swipes", `${fromUserId}_${userId}`);
 
+    // Verificar si el documento ya existe en la colección 'swipes'
+    const existingDocSnap = await getDoc(swipeDocRef);
+
+    if (existingDocSnap.exists()) {
+      // Actualizar el estado del documento existente
       await updateDoc(swipeDocRef, {
         tipo: matchType,
         fecha: timestamp,
       });
-
-      if (matchType === "match") {
-        // Verificar si ambos hicieron match
-        const q = query(
-          collection(db, "swipes"),
-          where("fromUserId", "==", userId),
-          where("toUserId", "==", fromUserId),
-          where("tipo", "==", "match")
-        );
-        const snapshot = await getDocs(q);
-
-        if (!snapshot.empty) {
-          // Crear el match en la colección "matches"
-          const matchDocRef = doc(collection(db, "matches"), `${fromUserId}_${userId}`);
-          await setDoc(matchDocRef, {
-            chatid: `${fromUserId}_${userId}`,
-            howMatch: timestamp,
-            usersId: [fromUserId, userId],
-          });
-          console.log("✅ Match confirmado");
-        } else {
-          console.log("❌ No hay match mutuo");
-        }
-      }
-
-      router.back();
-    } catch (error) {
-      console.error("Error al actualizar el estado de match:", error);
+      console.log(`🔄 Documento actualizado con el estado: ${matchType}`);
+    } else {
+      // Crear el documento si no existe
+      await setDoc(swipeDocRef, {
+        fromUserId,
+        toUserId: userId,
+        tipo: matchType,
+        fecha: timestamp,
+      });
+      console.log(`✅ Nuevo documento creado con el estado: ${matchType}`);
     }
+
+    if (matchType === "match") {
+      // Verificar si ambos hicieron match
+      const q = query(
+        collection(db, "swipes"),
+        where("fromUserId", "==", userId),
+        where("toUserId", "==", fromUserId),
+        where("tipo", "==", "match")
+      );
+      const snapshot = await getDocs(q);
+
+      if (!snapshot.empty) {
+        const matchDocRef = doc(collection(db, "matches"), `${fromUserId}_${userId}`);
+        await setDoc(matchDocRef, {
+          chatid: `${fromUserId}_${userId}`,
+          howMatch: timestamp,
+          usersId: [fromUserId, userId],
+        });
+        console.log("✅ Match confirmado");
+      }
+    }
+
+    if (matchType === "reject") {
+      // Actualizar la interfaz para que desaparezca de New Matches
+      console.log("🚫 Rechazo registrado");
+      setUser(null);
+      router.back();
+    }
+  } catch (error) {
+    console.error("Error al actualizar el estado de match:", error);
   }
+}
+
+
 
   function calculateAge(birthdate: string): number {
     if (!birthdate) return 0;
@@ -108,9 +129,30 @@ export default function MatchProfileInfo() {
             {user.interests.map((interest, index) => (
               <Text key={index} style={styles.interest}>{interest}</Text>
             ))}
+            <Text style={styles.sectionTitle}>Galería:</Text>
           </View>
 
-          {/* Botones de Match y Rechazo */}
+          <FlatList
+            data={user.photos}
+            keyExtractor={(item, index) => index.toString()}
+            numColumns={3}
+            renderItem={({ item }) => (
+              <TouchableOpacity onPress={() => setSelectedImage(item)}>
+                <Image source={{ uri: item }} style={styles.galleryImage} />
+              </TouchableOpacity>
+            )}
+            contentContainerStyle={styles.galleryContainer}
+          />
+
+          <Modal visible={!!selectedImage} transparent={true} animationType="fade">
+            <View style={styles.modalBackground}>
+              <TouchableOpacity style={styles.closeButton} onPress={() => setSelectedImage(null)}>
+                <Text style={styles.closeText}>✕</Text>
+              </TouchableOpacity>
+              <Image source={{ uri: selectedImage || '' }} style={styles.fullScreenImage} />
+            </View>
+          </Modal>
+
           <View style={styles.buttonsContainer}>
             <TouchableOpacity onPress={() => handleMatch("reject")} style={styles.rejectButton}>
               <MaterialIcons name="cancel" size={30} color="red" />
@@ -167,6 +209,29 @@ const styles = StyleSheet.create({
     fontSize: 18,
     marginBottom: 5,
   },
+  modalBackground: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fullScreenImage: {
+    width: '90%',
+    height: '70%',
+    borderRadius: 20,
+  },
+  closeButton: {
+    position: 'absolute',
+    top: 30,
+    right: 30,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: 20,
+    padding: 5,
+  },
+  closeText: {
+    color: '#fff',
+    fontSize: 20,
+  },
   buttonsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-around',
@@ -181,5 +246,15 @@ const styles = StyleSheet.create({
     backgroundColor: '#f0d4d4',
     padding: 10,
     borderRadius: 20,
+  },
+  galleryContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  galleryImage: {
+    width: 100,
+    height: 100,
+    borderRadius: 10,
+    margin: 5,
   },
 });

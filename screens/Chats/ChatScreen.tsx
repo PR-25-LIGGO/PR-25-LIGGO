@@ -73,10 +73,11 @@ export default function ChatsScreen() {
         <Text style={styles.sectionTitle}>New Matches</Text>
         {matches.length > 0 ? (
           matches.map((match) => (
-            <TouchableOpacity 
+            // Dentro del componente ChatsScreen
+<TouchableOpacity 
   key={match.id} 
   style={styles.matchRow} 
-onPress={() => router.push(`/profile/profile-screen?id=${match.id}`)}
+  onPress={() => router.push(`/profile/matchProf?id=${match.id}`)}
 >
   <Image
     source={{ uri: match.photo }}
@@ -87,6 +88,8 @@ onPress={() => router.push(`/profile/profile-screen?id=${match.id}`)}
     <Text style={styles.matchDate}>{match.matchDate}</Text>
   </View>
 </TouchableOpacity>
+
+
 
           ))
         ) : (
