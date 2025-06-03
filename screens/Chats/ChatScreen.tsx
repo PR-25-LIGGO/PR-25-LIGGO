@@ -5,6 +5,7 @@ import { collection, getDocs, query, where, doc, getDoc } from "firebase/firesto
 import { db } from "@/services/firebase";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
+import { Ionicons } from "@expo/vector-icons";
 
 interface Match {
   id: string;
@@ -36,7 +37,6 @@ export default function ChatsScreen() {
           const data = docSnap.data();
           const fromUserId = data.fromUserId;
 
-          // Obtener la información del usuario que hizo el match
           const userRef = doc(db, "users", fromUserId);
           const userDoc = await getDoc(userRef);
 
@@ -61,43 +61,43 @@ export default function ChatsScreen() {
   }, []);
 
   return (
-    <View style={styles.container}>
-      <Image
-        source={require("@/assets/logo-liggo.png")}
-        style={styles.logo}
-        resizeMode="contain"
-      />
+  <View style={styles.container}>
+    <Text style={styles.title}>💬 Chats & Matches</Text>
+    <Image
+      source={require("@/assets/logo-liggo.png")}
+      style={styles.logo}
+      resizeMode="contain"
+    />
 
-      <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
-        {/* Matches */}
-        <Text style={styles.sectionTitle}>New Matches</Text>
+    <ScrollView showsVerticalScrollIndicator={false}>
+      
+      {/* 🟩 NUEVOS MATCHES */}
+      <View style={styles.cardContainer}>
+        <Text style={styles.sectionTitle}>✨ Nuevos Matches</Text>
         {matches.length > 0 ? (
           matches.map((match) => (
-            // Dentro del componente ChatsScreen
-<TouchableOpacity 
-  key={match.id} 
-  style={styles.matchRow} 
-  onPress={() => router.push(`/profile/matchProf?id=${match.id}`)}
->
-  <Image
-    source={{ uri: match.photo }}
-    style={styles.avatar}
-  />
-  <View style={{ marginLeft: 12 }}>
-    <Text style={styles.matchLabel}>{match.name}</Text>
-    <Text style={styles.matchDate}>{match.matchDate}</Text>
-  </View>
-</TouchableOpacity>
-
-
-
+            <TouchableOpacity
+              key={match.id}
+              style={styles.matchCard}
+              onPress={() => router.push(`/profile/matchProf?id=${match.id}`)}
+            >
+              <Image source={{ uri: match.photo }} style={styles.avatar} />
+              <View style={{ marginLeft: 10, flex: 1 }}>
+                <Text style={styles.matchName}>{match.name}</Text>
+                <Text style={styles.matchDate}>{match.matchDate}</Text>
+              </View>
+              <Ionicons name="heart" size={22} color="#DC2D22" />
+            </TouchableOpacity>
           ))
         ) : (
           <Text style={styles.noMatches}>No tienes nuevos matches</Text>
         )}
+      </View>
 
-        {/* Messages */}
-        <Text style={styles.sectionTitle}>Messages</Text>
+      {/* 🟦 MENSAJES */}
+      <View style={styles.chatContainer}>
+        <Text style={styles.sectionTitle}>📨 Mensajes Recientes</Text>
+
         <View style={styles.chatItem}>
           <Image
             source={{ uri: "https://randomuser.me/api/portraits/women/81.jpg" }}
@@ -105,10 +105,10 @@ export default function ChatsScreen() {
           />
           <View style={styles.chatContent}>
             <Text style={styles.chatName}>Sachia</Text>
-            <Text style={styles.chatPreview}>Recently active, match now!</Text>
+            <Text style={styles.chatPreview}>Vio tu perfil y quiere conocerte...</Text>
           </View>
           <View style={styles.badge}>
-            <Text style={styles.badgeText}>Likes You</Text>
+            <Text style={styles.badgeText}>💌</Text>
           </View>
         </View>
 
@@ -119,88 +119,135 @@ export default function ChatsScreen() {
           />
           <View style={styles.chatContent}>
             <Text style={styles.chatName}>Shain</Text>
-            <Text style={styles.chatPreview}>Hey, what's up with dog pics?</Text>
+            <Text style={styles.chatPreview}>¡Me encantan tus fotos de viaje!</Text>
           </View>
         </View>
-      </ScrollView>
+      </View>
+    </ScrollView>
 
-      <BottomNav />
-    </View>
-  );
+    <BottomNav />
+  </View>
+);
+
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: "#F9F9F9",
     paddingTop: 60,
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
   },
-  logo: {
-    width: 160,
-    height: 60,
+
+  cardContainer: {
+  backgroundColor: "#FFF0F0",
+  padding: 16,
+  borderRadius: 14,
+  marginBottom: 20,
+  shadowColor: "#000",
+  shadowOffset: { width: 0, height: 1 },
+  shadowOpacity: 0.06,
+  shadowRadius: 2,
+  elevation: 2,
+},
+
+chatContainer: {
+  backgroundColor: "#F8FFF8",
+  padding: 16,
+  borderRadius: 14,
+  marginBottom: 20,
+  shadowColor: "#000",
+  shadowOffset: { width: 0, height: 1 },
+  shadowOpacity: 0.06,
+  shadowRadius: 2,
+  elevation: 2,
+},
+  title: {
+    fontSize: 20,
+    fontWeight: "bold",
     alignSelf: "center",
     marginBottom: 10,
+    color: "#3DDC84",
+  },
+  logo: {
+    width: 140,
+    height: 90,
+    alignSelf: "center",
+    marginBottom: 20,
   },
   sectionTitle: {
     fontSize: 16,
     fontWeight: "bold",
-    marginTop: 20,
     marginBottom: 10,
-    color: "#333",
+    color: "#222",
   },
-  matchRow: {
+  matchCard: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 20,
+    backgroundColor: "#FFF", //card dentrode Nuevos MAtches
+    padding: 12,
+    borderRadius: 10,
+    marginBottom: 12,
+    shadowColor: "blue",
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 9,
   },
   avatar: {
     width: 50,
     height: 50,
     borderRadius: 25,
-    marginRight: 12,
+    backgroundColor: "#ccc",
   },
-  matchLabel: {
-    fontWeight: "500",
+  matchName: {
+    fontWeight: "bold",
     fontSize: 14,
+    color: "#333",
   },
   matchDate: {
     fontSize: 12,
-    color: "#555",
+    color: "#777",
   },
   noMatches: {
     fontSize: 14,
-    color: "#777",
-    marginBottom: 10,
+    color: "#999",
     textAlign: "center",
+    marginVertical: 10,
   },
+  
+  //Los cards dentro de Mensajes Recientes
   chatItem: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#eee",
-    paddingBottom: 12,
+    backgroundColor: "#FFF", //card dentrode Nuevos Mensaje
+    padding: 12,
+    borderRadius: 10,
+    marginBottom: 12,
+    shadowColor: "red",
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 9,
   },
   chatContent: {
     flex: 1,
+    marginLeft: 10,
   },
   chatName: {
     fontWeight: "bold",
     fontSize: 15,
+    color: "#111",
   },
   chatPreview: {
     fontSize: 13,
-    color: "#666",
+    color: "#555",
   },
   badge: {
-    backgroundColor: "#FCD34D",
+    backgroundColor: "#FFDE59",
     paddingHorizontal: 8,
-    paddingVertical: 2,
+    paddingVertical: 4,
     borderRadius: 10,
   },
   badgeText: {
-    fontSize: 11,
-    fontWeight: "bold",
+    fontSize: 14,
   },
 });
