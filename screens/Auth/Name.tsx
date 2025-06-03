@@ -64,65 +64,65 @@ export default function NameScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      style={styles.container}
-      keyboardVerticalOffset={Platform.OS === "ios" ? 60 : 0}
-    >
-      <ScrollView
-        contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 100, paddingBottom: 40 }}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
-        <TouchableOpacity onPress={() => router.back()} style={styles.backArrow}>
-          <Text style={{ fontSize: 18 }}>◀</Text>
-        </TouchableOpacity>
+<KeyboardAvoidingView
+  behavior={Platform.OS === "ios" ? "padding" : "padding"}
+  style={styles.container}
+  keyboardVerticalOffset={Platform.OS === "ios" ? 60 : 60}
+>
+  <ScrollView
+    contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 100, paddingBottom: 100, flexGrow: 1 }}
+    keyboardShouldPersistTaps="handled"
+    showsVerticalScrollIndicator={false}
+  >
+    <TouchableOpacity onPress={() => router.back()} style={styles.backArrow}>
+      <Text style={{ fontSize: 18 }}>◀</Text>
+    </TouchableOpacity>
 
-        <Text style={styles.title}>Mi nombre es:</Text>
-        <TextInput
-          placeholder="Nombre Apellido"
-          placeholderTextColor="#999"
-          value={name}
-          onChangeText={setName}
-          style={styles.input}
-          returnKeyType="done"
-        />
+    <Text style={styles.title}>Mi nombre es:</Text>
+    <TextInput
+      placeholder="Nombre Apellido"
+      placeholderTextColor="#999"
+      value={name}
+      onChangeText={setName}
+      style={styles.input}
+      returnKeyType="done"
+    />
 
-        <Text style={styles.title}>Selecciona tu carrera:</Text>
-        <View style={styles.tagsContainer}>
-          {CAREERS.map((career) => (
-            <TouchableOpacity
-              key={career}
-              style={[
-                styles.tag,
-                selectedCareer === career && styles.selectedTag,
-              ]}
-              onPress={() => setSelectedCareer(career)}
-            >
-              <Text
-                style={[
-                  styles.tagText,
-                  selectedCareer === career && styles.selectedTagText,
-                ]}
-              >
-                {career}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        <TouchableOpacity onPress={handleContinue} style={styles.buttonWrapper}>
-          <LinearGradient
-            colors={["#4eff6a", "#ff87d2"]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={styles.button}
+    <Text style={styles.title}>Selecciona tu carrera:</Text>
+    <View style={styles.tagsContainer}>
+      {CAREERS.map((career) => (
+        <TouchableOpacity
+          key={career}
+          style={[
+            styles.tag,
+            selectedCareer === career && styles.selectedTag,
+          ]}
+          onPress={() => setSelectedCareer(career)}
+        >
+          <Text
+            style={[
+              styles.tagText,
+              selectedCareer === career && styles.selectedTagText,
+            ]}
           >
-            <Text style={styles.buttonText}>CONTINUAR</Text>
-          </LinearGradient>
+            {career}
+          </Text>
         </TouchableOpacity>
-      </ScrollView>
-    </KeyboardAvoidingView>
+      ))}
+    </View>
+
+    <TouchableOpacity onPress={handleContinue} style={styles.buttonWrapper}>
+      <LinearGradient
+        colors={["#4eff6a", "#ff87d2"]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        style={styles.button}
+      >
+        <Text style={styles.buttonText}>CONTINUAR</Text>
+      </LinearGradient>
+    </TouchableOpacity>
+  </ScrollView>
+</KeyboardAvoidingView>
   );
 }
 

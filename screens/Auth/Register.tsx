@@ -31,47 +31,67 @@ export default function Register() {
     setConfirm(text.replace(/\s/g, ""));
   };
 
-  const handleRegister = async () => {
-    if (!email || !password || !confirm) {
-      Alert.alert("Error", "Todos los campos son obligatorios");
-      return;
-    }
+const handleRegister = async () => {
+  if (!email || !password || !confirm) {
+    Alert.alert("Error", "Todos los campos son obligatorios");
+    return;
+  }
 
-    if (email.includes(" ")) {
-      Alert.alert("Correo inválido", "El correo no puede contener espacios");
-      return;
-    }
+  if (email.includes(" ")) {
+    Alert.alert("Correo inválido", "El correo no puede contener espacios");
+    return;
+  }
 
-    if (password.includes(" ") || confirm.includes(" ")) {
-      Alert.alert("Contraseña inválida", "La contraseña no puede contener espacios");
-      return;
-    }
+  if (password.includes(" ") || confirm.includes(" ")) {
+    Alert.alert("Contraseña inválida", "La contraseña no puede contener espacios");
+    return;
+  }
 
-    if (!email.endsWith("@est.univalle.edu")) {
-      Alert.alert("Correo inválido", "Usa tu correo institucional (@est.univalle.edu)");
-      return;
-    }
+  if (!email.endsWith("@est.univalle.edu")) {
+    Alert.alert("Correo inválido", "Usa tu correo institucional (@est.univalle.edu)");
+    return;
+  }
 
-    if (password !== confirm) {
-      Alert.alert("Contraseñas no coinciden", "Revisa que ambas contraseñas sean iguales");
-      return;
-    }
+  if (password !== confirm) {
+    Alert.alert("Contraseñas no coinciden", "Revisa que ambas contraseñas sean iguales");
+    return;
+  }
 
-    try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
+  // Validación adicional para contraseña fuerte
+  const uppercaseRegex = /[A-Z]/;
+  const numberRegex = /\d/;
+  const specialCharRegex = /[!@#$%^&*(),.?":{}|<>]/;
 
-      // Guardar en Firestore algún dato inicial del usuario
-      await setDoc(doc(db, "users", user.uid), {
-        createdAt: new Date().toISOString()
-      });
+  if (!uppercaseRegex.test(password)) {
+    Alert.alert("Contraseña débil", "La contraseña debe contener al menos una letra mayúscula.");
+    return;
+  }
 
-      Alert.alert("Registro exitoso", "Cuenta creada correctamente");
-      router.push("/auth/name"); // o la siguiente pantalla en tu flujo
-    } catch (error: any) {
-      Alert.alert("Error al registrarse", error.message);
-    }
-  };
+  if (!numberRegex.test(password)) {
+    Alert.alert("Contraseña débil", "La contraseña debe contener al menos un número.");
+    return;
+  }
+
+  if (!specialCharRegex.test(password)) {
+    Alert.alert("Contraseña débil", "La contraseña debe contener al menos un carácter especial.");
+    return;
+  }
+
+  try {
+    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    const user = userCredential.user;
+
+    // Guardar en Firestore algún dato inicial del usuario
+    await setDoc(doc(db, "users", user.uid), {
+      createdAt: new Date().toISOString()
+    });
+
+    Alert.alert("Registro exitoso", "Cuenta creada correctamente");
+    router.push("/auth/name"); 
+  } catch (error: any) {
+    Alert.alert("Error al registrarse", error.message);
+  }
+};
 
   return (
     <View style={styles.container}>
