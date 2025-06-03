@@ -54,10 +54,9 @@ export default function EditProfileScreen() {
   const [name, setName] = useState("");
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
-  const [photos, setPhotos] = useState<(string | null)[]>(Array(6).fill(null)); // Max 6 photos
+  const [photos, setPhotos] = useState<(string | null)[]>(Array(6).fill(null));
   const [saving, setSaving] = useState(false);
 
-  // Cargar datos actuales
   useEffect(() => {
     async function loadUserData() {
       try {
@@ -82,7 +81,6 @@ export default function EditProfileScreen() {
     loadUserData();
   }, []);
 
-  // Seleccionar o quitar interés
   const toggleInterest = (interest: string) => {
     if (selectedInterests.includes(interest)) {
       setSelectedInterests(selectedInterests.filter(i => i !== interest));
@@ -91,7 +89,6 @@ export default function EditProfileScreen() {
     }
   };
 
-  // Seleccionar una imagen
   const pickImage = async (index: number) => {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -106,14 +103,12 @@ export default function EditProfileScreen() {
     }
   };
 
-  // Eliminar una imagen
   const removeImage = (index: number) => {
     const newPhotos = [...photos];
     newPhotos[index] = null;
     setPhotos(newPhotos);
   };
 
-  // Guardar nombre, intereses y fotos
   const handleSave = async () => {
     if (!name.trim()) {
       Alert.alert("Nombre requerido", "Por favor ingresa tu nombre completo");
@@ -133,11 +128,10 @@ export default function EditProfileScreen() {
 
       const downloadURLs: string[] = [];
 
-      // Subir imágenes a Firebase Storage y obtener las URLs
       for (let i = 0; i < selectedPhotos.length; i++) {
         const response = await fetch(selectedPhotos[i]);
         const blob = await response.blob();
-const filename = `users/${uid}/photo${i + 1}.jpg`;
+        const filename = `users/${uid}/photo${i + 1}.jpg`;
 
         const imageRef = ref(storage, filename);
         await uploadBytes(imageRef, blob);
@@ -145,7 +139,6 @@ const filename = `users/${uid}/photo${i + 1}.jpg`;
         downloadURLs.push(url);
       }
 
-      // Guardar datos en Firestore
       await setDoc(doc(db, "users", uid), { name, interests: selectedInterests, photos: downloadURLs }, { merge: true });
 
       Alert.alert("Éxito", "Perfil actualizado");
@@ -167,7 +160,6 @@ const filename = `users/${uid}/photo${i + 1}.jpg`;
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 30 }}>
-      {/* Top Bar: Logo y botón Atrás */}
       <View style={styles.topBar}>
         <Image
           source={require('@/assets/logo-liggo.png')}
