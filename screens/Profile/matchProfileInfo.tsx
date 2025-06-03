@@ -5,6 +5,8 @@ import { doc, getDoc, setDoc, updateDoc, query, where, getDocs, collection } fro
 import { db } from '@/services/firebase';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { ScrollView } from 'react-native-reanimated/lib/typescript/Animated';
+import { deleteDoc } from "firebase/firestore";
 
 interface UserProfile {
   name: string;
@@ -36,68 +38,89 @@ export default function MatchProfileInfo() {
     fetchUserProfile();
   }, [id]);
 
+  //codigoSwipe
+
   async function handleMatch(matchType: string) {
   try {
-    const userId = id?.toString();
-    const fromUserId = await AsyncStorage.getItem("userId");
+    const userId = id?.toString(); // ID del perfil que estoy viendo
+    const fromUserId = await AsyncStorage.getItem("userId"); // ID del usuario autenticado
     if (!fromUserId || !userId) return;
 
     const timestamp = new Date().toISOString();
-    const swipeDocRef = doc(db, "swipes", `${fromUserId}_${userId}`);
 
-    // Verificar si el documento ya existe en la colección 'swipes'
-    const existingDocSnap = await getDoc(swipeDocRef);
+    // 🔐 ID compuesto predecible para matches
+    const idsOrdenados = [fromUserId, userId].sort(); // [userA, userB]
+    const matchDocId = `${idsOrdenados[0]}_${idsOrdenados[1]}`;
 
-    if (existingDocSnap.exists()) {
-      // Actualizar el estado del documento existente
-      await updateDoc(swipeDocRef, {
-        tipo: matchType,
-        fecha: timestamp,
-      });
-      console.log(`🔄 Documento actualizado con el estado: ${matchType}`);
-    } else {
-      // Crear el documento si no existe
-      await setDoc(swipeDocRef, {
-        fromUserId,
-        toUserId: userId,
-        tipo: matchType,
-        fecha: timestamp,
-      });
-      console.log(`✅ Nuevo documento creado con el estado: ${matchType}`);
-    }
+    // 🔄 Buscar documento original en swipes (de quien envió el primer match)
+    const swipeQuery = query(
+      collection(db, "swipes"),
+      where("fromUserId", "==", userId),
+      where("toUserId", "==", fromUserId)
+    );
+    const swipeSnapshot = await getDocs(swipeQuery);
 
-    if (matchType === "match") {
-      // Verificar si ambos hicieron match
-      const q = query(
-        collection(db, "swipes"),
-        where("fromUserId", "==", userId),
-        where("toUserId", "==", fromUserId),
-        where("tipo", "==", "match")
-      );
-      const snapshot = await getDocs(q);
+    // 🔍 Encontrar documento original (del primer swipe)
+    if (!swipeSnapshot.empty) {
+      const originalDoc = swipeSnapshot.docs[0]; // asumimos solo uno
+      const swipeDocRef = doc(db, "swipes", originalDoc.id);
 
-      if (!snapshot.empty) {
-        const matchDocRef = doc(collection(db, "matches"), `${fromUserId}_${userId}`);
-        await setDoc(matchDocRef, {
-          chatid: `${fromUserId}_${userId}`,
-          howMatch: timestamp,
-          usersId: [fromUserId, userId],
-        });
-        console.log("✅ Match confirmado");
-      }
-    }
+      if (matchType === "match") {
+  const q = query(
+    collection(db, "swipes"),
+    where("fromUserId", "==", userId),
+    where("toUserId", "==", fromUserId),
+    where("tipo", "==", "match")
+  );
+  const snapshot = await getDocs(q);
 
-    if (matchType === "reject") {
-      // Actualizar la interfaz para que desaparezca de New Matches
-      console.log("🚫 Rechazo registrado");
-      setUser(null);
-      router.back();
-    }
-  } catch (error) {
-    console.error("Error al actualizar el estado de match:", error);
+  if (!snapshot.empty) {
+    const sortedIds = [fromUserId, userId].sort();
+    const matchDocId = `${sortedIds[0]}_${sortedIds[1]}`;
+
+    const matchRef = doc(db, "matches", matchDocId);
+    await setDoc(matchRef, {
+      chatid: matchDocId,
+      howMatch: timestamp,
+      usersId: sortedIds,
+    });
+    console.log("✅ Match confirmado y guardado en matches");
   }
 }
 
+
+      if (matchType === "reject") {
+  await updateDoc(swipeDocRef, {
+    tipo: "reject",
+    fecha: timestamp,
+  });
+  console.log("🚫 Rechazo actualizado en swipes");
+
+  // Eliminar el documento de matches
+  const sortedIds = [fromUserId, userId].sort();
+  const matchDocId = `${sortedIds[0]}_${sortedIds[1]}`;
+  const matchRef = doc(db, "matches", matchDocId);
+  const matchSnap = await getDoc(matchRef);
+  if (matchSnap.exists()) {
+    await deleteDoc(matchRef);
+    console.log("🗑️ Documento de match eliminado");
+  }
+
+  setUser(null);
+  router.back();
+}
+
+    } else {
+      console.warn("❗ No se encontró el swipe original para actualizar");
+    }
+  } catch (error) {
+    console.error("Error al manejar el match/reject:", error);
+  }
+}
+
+
+
+//Final codigo Swipe
 
 
   function calculateAge(birthdate: string): number {
@@ -114,10 +137,17 @@ export default function MatchProfileInfo() {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} >
+      <View style={styles.topBar}>
+        <Image source={require('@/assets/logo-liggo.png')} style={styles.logo} resizeMode="contain" />
+        <TouchableOpacity onPress={() => router.back()}>
+          <Text style={styles.backButton}>Atras</Text>
+        </TouchableOpacity>
+      </View>
+
       {user && (
         <>
-          <View style={styles.header}>
+          <View style={styles.cardContainer}>
             {user.photos.length > 0 ? (
               <Image source={{ uri: user.photos[0] }} style={styles.mainPhoto} />
             ) : (
@@ -125,24 +155,31 @@ export default function MatchProfileInfo() {
             )}
             <Text style={styles.name}>{user.name}</Text>
             <Text style={styles.age}>{calculateAge(user.birthdate)} años</Text>
-            <Text style={styles.sectionTitle}>Intereses:</Text>
-            {user.interests.map((interest, index) => (
-              <Text key={index} style={styles.interest}>{interest}</Text>
-            ))}
-            <Text style={styles.sectionTitle}>Galería:</Text>
+            <Text style={styles.sectionTitle}>🎯 Intereses:</Text>
+<View style={styles.tagsContainer}>
+  {user.interests.map((interest, index) => (
+    <View key={index} style={styles.tag}>
+      <Text style={styles.tagText}>{interest}</Text>
+    </View>
+  ))}
+</View>
+
           </View>
 
-          <FlatList
-            data={user.photos}
-            keyExtractor={(item, index) => index.toString()}
-            numColumns={3}
-            renderItem={({ item }) => (
-              <TouchableOpacity onPress={() => setSelectedImage(item)}>
-                <Image source={{ uri: item }} style={styles.galleryImage} />
-              </TouchableOpacity>
-            )}
-            contentContainerStyle={styles.galleryContainer}
-          />
+          <View style={styles.galeriaContainer}>
+            <Text style={styles.sectionTitle}>🖼️ Galería:</Text>
+            <FlatList
+              data={user.photos}
+              keyExtractor={(item, index) => index.toString()}
+              numColumns={3}
+              renderItem={({ item }) => (
+                <TouchableOpacity onPress={() => setSelectedImage(item)}>
+                  <Image source={{ uri: item }} style={styles.galleryImage} />
+                </TouchableOpacity>
+              )}
+              contentContainerStyle={styles.galleryContainer}
+            />
+          </View>
 
           <Modal visible={!!selectedImage} transparent={true} animationType="fade">
             <View style={styles.modalBackground}>
@@ -170,44 +207,119 @@ export default function MatchProfileInfo() {
 const styles = StyleSheet.create({
   container: {
     padding: 15,
-    backgroundColor: '#fff',
+    backgroundColor: '#F9F9F9',
     flex: 1,
   },
-  header: {
+  topBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
-  },
-  mainPhoto: {
-    width: 150,
-    height: 150,
-    borderRadius: 75,
     marginBottom: 10,
   },
-  noImageText: {
+  logo: {
+    width: 120,
+    height: 80,
+  },
+  backButton: {
+    backgroundColor: '#DC2D22',
+    color: '#fff',
     fontSize: 16,
-    color: '#888',
-    marginTop: 20,
-    textAlign: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  //card de perfil
+  cardContainer: {
+    backgroundColor: "#FFF0F0",
+    padding: 16,
+    borderRadius: 14,
+    marginBottom: 20,
+    shadowColor: "blue",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+
+//card de galeria 
+galeriaContainer: {
+    backgroundColor: "#f4fef5",
+    padding: 16,
+    borderRadius: 14,
+    marginBottom: 20,
+  
+    shadowColor: "red",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+
+  mainPhoto: {
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    alignSelf: "center",
+    marginBottom: 10,
   },
   name: {
-    fontSize: 26,
-    fontWeight: 'bold',
-    marginTop: 5,
-    color: '#333',
+    fontSize: 24,
+    fontWeight: "bold",
+    textAlign: "center",
+    color: "#333",
   },
   age: {
-    fontSize: 20,
-    color: '#555',
+    fontSize: 18,
+    textAlign: "center",
+    color: "#555",
+    marginBottom: 8,
   },
   sectionTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#DC2D22",
     marginVertical: 10,
-    color: '#480081',
+    textAlign: "center",
   },
   interest: {
-    fontSize: 18,
-    marginBottom: 5,
+    fontSize: 16,
+    color: "#222",
+    marginVertical: 4,
+    padding: 6,
+    borderWidth: 2,
+    borderColor: "#3DDC84",
+    borderRadius: 12,
+    fontStyle: 'italic',
+    textAlign: 'center',
+    alignSelf: 'center',
+    backgroundColor: '#fff',
+  },
+  galleryContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  galleryImage: {
+    width: 100,
+    height: 100,
+    borderRadius: 10,
+    margin: 5,
+  },
+  buttonsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginTop: 20,
+  },
+  matchButton: {
+    backgroundColor: '#D4F0D4',
+    padding: 12,
+    borderRadius: 20,
+    elevation: 4,
+  },
+  rejectButton: {
+    backgroundColor: '#F0D4D4',
+    padding: 12,
+    borderRadius: 20,
+    elevation: 4,
   },
   modalBackground: {
     flex: 1,
@@ -224,37 +336,43 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 30,
     right: 30,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: '#DC2D22',
     borderRadius: 20,
-    padding: 5,
+    padding: 6,
   },
   closeText: {
     color: '#fff',
     fontSize: 20,
   },
-  buttonsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginTop: 20,
+  noImageText: {
+    textAlign: 'center',
+    color: '#777',
+    fontSize: 16,
+    marginVertical: 20,
   },
-  matchButton: {
-    backgroundColor: '#d4f0d4',
-    padding: 10,
-    borderRadius: 20,
-  },
-  rejectButton: {
-    backgroundColor: '#f0d4d4',
-    padding: 10,
-    borderRadius: 20,
-  },
-  galleryContainer: {
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  galleryImage: {
-    width: 100,
-    height: 100,
-    borderRadius: 10,
-    margin: 5,
-  },
+
+  tagsContainer: {
+  flexDirection: "row",
+  flexWrap: "wrap",
+  gap: 8,
+  rowGap: 10,
+  justifyContent: "center",
+  marginBottom: 10,
+},
+tag: {
+  borderWidth: 1.5,
+  borderColor: "#3DDC84",
+  backgroundColor: "#fff",
+  borderRadius: 20,
+  paddingVertical: 6,
+  paddingHorizontal: 14,
+  elevation: 2,
+},
+tagText: {
+  fontSize: 14,
+  color: "#111",
+  fontWeight: "500",
+  fontStyle: "italic",
+},
+
 });

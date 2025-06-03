@@ -9,11 +9,24 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
+  Image,
+  Modal,
 } from "react-native";
-import { useLocalSearchParams } from "expo-router";
-import { collection, addDoc, onSnapshot, orderBy, query } from "firebase/firestore";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import {
+  collection,
+  addDoc,
+  onSnapshot,
+  orderBy,
+  query,
+  serverTimestamp,
+  doc,
+  updateDoc,
+  getDoc,
+} from "firebase/firestore";
 import { db } from "@/services/firebase";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Ionicons } from "@expo/vector-icons";
 
 interface Message {
   id: string;
@@ -21,11 +34,15 @@ interface Message {
   from: string;
   to: string;
   timestamp: any;
+  seen?: boolean;
 }
 
 export default function UserChat() {
   const { chatId, name } = useLocalSearchParams();
+  const router = useRouter();
   const [userId, setUserId] = useState<string | null>(null);
+  const [otherUserPhoto, setOtherUserPhoto] = useState<string | null>(null);
+  const [modalVisible, setModalVisible] = useState(false);
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
   const flatListRef = useRef<FlatList>(null);
@@ -36,37 +53,78 @@ export default function UserChat() {
     AsyncStorage.getItem("userId").then(setUserId);
   }, []);
 
+  // Cargar foto del otro usuario
   useEffect(() => {
-    if (!chatId) return;
+    async function fetchOtherUserPhoto() {
+      if (!chatId || !userId) return;
+
+      if (typeof chatId !== "string") {
+        console.error("chatId debe ser string, no array");
+        return;
+      }
+
+      const chatDoc = await getDoc(doc(db, "matches", chatId));
+
+      if (!chatDoc.exists()) return;
+
+      const usersId: string[] = chatDoc.data().usersId || [];
+      const otherUserId = usersId.find((id) => id !== userId);
+      if (!otherUserId) return;
+
+      const userDoc = await getDoc(doc(db, "users", otherUserId));
+      if (!userDoc.exists()) return;
+
+      const photos: string[] = userDoc.data().photos || [];
+      if (photos.length > 0) {
+        setOtherUserPhoto(photos[0]);
+      }
+    }
+
+    fetchOtherUserPhoto();
+  }, [chatId, userId]);
+
+  useEffect(() => {
+    if (!chatId || !userId) return;
 
     const q = query(
       collection(db, "matches", chatId, "messages"),
       orderBy("timestamp", "asc")
     );
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
+    const unsubscribe = onSnapshot(q, async (snapshot) => {
       const msgs = snapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
       })) as Message[];
 
       setMessages(msgs);
+
+      for (const msg of msgs) {
+        if (!msg.seen && msg.from !== userId) {
+          const msgRef = doc(db, "matches", chatId, "messages", msg.id);
+          await updateDoc(msgRef, { seen: true });
+        }
+      }
     });
 
     return unsubscribe;
-  }, [chatId]);
+  }, [chatId, userId]);
 
   const sendMessage = async () => {
     if (!message.trim() || !userId) return;
 
-    await addDoc(collection(db, "matches", chatId, "messages"), {
-      text: message,
-      from: userId,
-      to: "",
-      timestamp: new Date(),
-    });
-
-    setMessage("");
+    try {
+      await addDoc(collection(db, "matches", chatId, "messages"), {
+        text: message,
+        from: userId,
+        to: "",
+        timestamp: serverTimestamp(),
+        seen: false,
+      });
+      setMessage("");
+    } catch (error) {
+      console.error("Error al enviar mensaje:", error);
+    }
   };
 
   useEffect(() => {
@@ -77,6 +135,11 @@ export default function UserChat() {
 
   const renderItem = ({ item }: { item: Message }) => {
     const isMe = item.from === userId;
+    const time = item.timestamp?.toDate?.()?.toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+
     return (
       <View
         style={[
@@ -85,15 +148,62 @@ export default function UserChat() {
         ]}
       >
         <Text style={styles.messageText}>{item.text}</Text>
+        <View style={{ flexDirection: "row", justifyContent: "flex-end" }}>
+          {time && <Text style={styles.time}>{time}</Text>}
+          {isMe && <Text style={styles.checks}>{item.seen ? "✔✔" : "✔"}</Text>}
+        </View>
       </View>
     );
   };
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      {/* Modal para imagen ampliada */}
+      <Modal
+        visible={modalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalBackground}
+          activeOpacity={1}
+          onPress={() => setModalVisible(false)}
+        >
+          <Image
+            source={{ uri: otherUserPhoto || "" }}
+            style={styles.modalImage}
+            resizeMode="contain"
+          />
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Encabezado con botón volver y foto */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>{name || "Chat"}</Text>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => router.back()}
+        >
+          <Ionicons name="arrow-back" size={28} color="#fff" />
+        </TouchableOpacity>
+
+        {/* Contenedor para foto y nombre, a la izquierda */}
+        <View style={styles.leftContainer}>
+          <TouchableOpacity onPress={() => setModalVisible(true)}>
+            {otherUserPhoto ? (
+              <Image source={{ uri: otherUserPhoto }} style={styles.profilePhoto} />
+            ) : (
+              <View style={styles.profilePlaceholder} />
+            )}
+          </TouchableOpacity>
+          <Text style={styles.headerSubtitle}>{name || "Chat"}</Text>
+        </View>
+
+
+        {/* Espacio para balancear el header */}
+        <View style={{ width: 28 }} />
       </View>
+
 
       <KeyboardAvoidingView
         style={styles.container}
@@ -130,17 +240,63 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#fff",
   },
-  header: {
-    height: 60,
+  modalBackground: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.8)",
     justifyContent: "center",
     alignItems: "center",
-    borderBottomWidth: 1,
-    borderBottomColor: "#ddd",
-    paddingHorizontal: 16,
-    backgroundColor: "#FF6C00",
   },
-  headerTitle: {
-    fontSize: 20,
+  modalImage: {
+    width: "90%",
+    height: "70%",
+    borderRadius: 12,
+  },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingTop: 40,  // como dices que quieres
+    paddingBottom: 12,
+    backgroundColor: "#FF6C00",
+    paddingHorizontal: 12,
+    position: "relative", // para que el centro pueda ser absoluto
+  },
+  backButton: {
+    padding: 4,
+  },
+  leftContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+  },
+  profilePhoto: {
+    width: 40,
+    height: 40,
+    borderRadius: 30,
+    marginRight: 15,
+  },
+  profilePlaceholder: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginRight: 8,
+    backgroundColor: "#ccc",
+  },
+  headerSubtitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#fff",
+    opacity: 0.9,
+  },
+  centerContainer: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    alignItems: "center",
+    // Opcional para poner un poco más arriba:
+    // top: 48,
+  },
+  headerMainTitle: {
+    fontSize: 28,
     fontWeight: "bold",
     color: "#fff",
   },
@@ -169,6 +325,18 @@ const styles = StyleSheet.create({
   messageText: {
     fontSize: 16,
     color: "#fff",
+  },
+  time: {
+    marginTop: 4,
+    fontSize: 10,
+    color: "#eee",
+    alignSelf: "flex-end",
+  },
+  checks: {
+    marginLeft: 4,
+    marginTop: 4,
+    color: "#eee",
+    fontSize: 14,
   },
   inputContainer: {
     flexDirection: "row",

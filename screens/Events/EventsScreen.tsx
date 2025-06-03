@@ -1,14 +1,26 @@
-import { View, Text, Image, TouchableOpacity, ScrollView, StyleSheet } from "react-native";
+import React, { useEffect, useState } from "react";
+import {
+  View,
+  Text,
+  Image,
+  TouchableOpacity,
+  ScrollView,
+  StyleSheet,
+} from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
-import { useEffect, useState } from "react";
+import { auth } from "@/services/firebase";
 import {
   listenToEvents,
   isUserAttending,
   toggleAttendance,
   listenToAttendeeCount,
+  listenToUserAttendance,
 } from "@/services/eventService";
 import BottomNav from "@/components/BottomNav";
+import { useFocusEffect } from '@react-navigation/native';
+import { useCallback } from 'react';
+
 
 export default function EventsScreen() {
   const router = useRouter();
@@ -16,101 +28,117 @@ export default function EventsScreen() {
   const [attendingIds, setAttendingIds] = useState<string[]>([]);
   const [attendeeCounts, setAttendeeCounts] = useState<{ [key: string]: number }>({});
 
+ useFocusEffect(
+    useCallback(() => {
+      let unsubAttendList: (() => void)[] = [];
+      let unsubUserAttendList: (() => void)[] = [];
 
-  useEffect(() => {
-    const unsubEventList = listenToEvents(async (data) => {
-      setEvents(data);
+      const unsubEventList = listenToEvents((data) => {
+        setEvents(data);
 
-      // Verificar asistencia por evento
-      const attendanceResults = await Promise.all(
-        data.map(async (event) => {
-          const isAttending = await isUserAttending(event.id);
-          return isAttending ? event.id : null;
-        })
-      );
-      setAttendingIds(attendanceResults.filter(Boolean) as string[]);
+        const currentUserId = auth.currentUser?.uid;
+        if (!currentUserId) return;
 
-      // Escuchar en tiempo real el contador por evento
-      const unsubCountList = data.map((event) =>
-        listenToAttendeeCount(event.id, (count) => {
-          setAttendeeCounts((prev) => ({
-            ...prev,
-            [event.id]: count,
-          }));
-        })
-      );
+        // Suscribirse a conteo de asistentes para cada evento
+        unsubAttendList = data.map((event) =>
+          listenToAttendeeCount(event.id, (count) => {
+            setAttendeeCounts((prev) => ({
+              ...prev,
+              [event.id]: count,
+            }));
+          })
+        );
 
-      // Limpiar listeners al desmontar
-      return () => {
-        unsubCountList.forEach((unsub) => unsub());
+        // Suscribirse a asistencia del usuario para cada evento
+        unsubUserAttendList = data.map((event) =>
+          listenToUserAttendance(event.id, currentUserId, (isAttending) => {
+            setAttendingIds((prev) => {
+              if (isAttending && !prev.includes(event.id)) {
+                return [...prev, event.id];
+              } else if (!isAttending && prev.includes(event.id)) {
+                return prev.filter((id) => id !== event.id);
+              }
+              return prev;
+            });
+          })
+        );
+      });
+       return () => {
+        unsubEventList?.();
+        unsubAttendList.forEach((unsub) => unsub());
+        unsubUserAttendList.forEach((unsub) => unsub());
       };
-    });
-
-    return unsubEventList;
-  }, []);
+    }, [])
+  );
 
   return (
     <View style={styles.container}>
-      <Image source={require("@/assets/logo-liggo.png")} style={styles.logo} />
-      <Text style={styles.title}>Eventos Cerca</Text>
+      <Image
+        source={require("@/assets/logo-liggo.png")}
+        style={styles.logo}
+        resizeMode="contain"
+      />
+      <Text style={styles.title}>🎉 Eventos Cerca</Text>
 
-      <ScrollView contentContainerStyle={{ paddingBottom: 120 }}>
+      <ScrollView contentContainerStyle={{ paddingBottom: 100 }}>
         {events.map((event) => {
           const isAttending = attendingIds.includes(event.id);
-
           const eventDate = new Date(`${event.date} ${event.time}`);
           const now = new Date();
           const endDate = new Date(eventDate.getTime() + 5 * 60 * 60 * 1000);
           const isOngoing = now >= eventDate && now <= endDate;
-          const isUpcoming = now < eventDate;
+
           return (
-            <View key={event.id} style={styles.eventCard}>
-              <Image source={{ uri: event.imageUrl }} style={styles.eventImage} />
-              <View style={styles.eventInfo}>
-                <View>
+            <TouchableOpacity
+              key={event.id}
+              onPress={() =>
+                router.push({
+                  pathname: "/events/EventDetails/[id]",
+                  params: { id: event.id },
+                })
+              }
+            >
+              <View style={styles.eventCard}>
+                <Image source={{ uri: event.imageUrl }} style={styles.eventImage} />
+                <View style={styles.eventInfo}>
                   <Text style={styles.eventName}>{event.title}</Text>
                   <Text style={styles.eventMeta}>
-                    {isUpcoming ? "Próximamente" : isOngoing ? "Evento en curso" : `${event.date} · ${event.time}`}
+                    {isOngoing ? "🟢 En curso" : `📅 ${event.date} · 🕒 ${event.time}`}
                   </Text>
+                  <Text style={styles.eventMeta}>📍 {event.location}</Text>
 
-                  <Text style={styles.eventMeta}>{event.location}</Text>
-                </View>
-
-                <TouchableOpacity
-                  onPress={async () => {
-                    await toggleAttendance(event.id, isAttending);
-                    setAttendingIds((prev) =>
-                      isAttending
-                        ? prev.filter((id) => id !== event.id)
-                        : [...prev, event.id]
-                    );
-                  }}
-                >
-                  <LinearGradient
-                    colors={isAttending ? ["#FF6C00", "#FF87D2"] : ["#4EFF6A", "#FF87D2"]}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={styles.gradientButton}
+                  <TouchableOpacity
+                    onPress={async () => {
+                      await toggleAttendance(event.id, isAttending);
+                      setAttendingIds((prev) =>
+                        isAttending ? prev.filter((id) => id !== event.id) : [...prev, event.id]
+                      );
+                    }}
                   >
-                    <Text style={styles.buttonText}>
-                      {isAttending ? "Quitar asistencia" : "Asistir"}
-                    </Text>
-                  </LinearGradient>
-                </TouchableOpacity>
+                    <LinearGradient
+                      colors={isAttending ? ["#FF6C00", "#FF87D2"] : ["#4EFF6A", "#3DDC84"]}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                      style={styles.gradientButton}
+                    >
+                      <Text style={styles.buttonText}>
+                        {isAttending ? "❌ Quitar asistencia" : "✅ Asistir"}
+                      </Text>
+                    </LinearGradient>
+                  </TouchableOpacity>
 
-                <Text style={styles.attendeeCount}>
-                  {attendeeCounts[event.id] || 0} asistente(s)
-                </Text>
+                  <Text style={styles.attendeeCount}>
+                    👥 {attendeeCounts[event.id] || 0} asistente(s)
+                  </Text>
+                </View>
               </View>
-            </View>
+            </TouchableOpacity>
+
           );
         })}
       </ScrollView>
 
-      <TouchableOpacity
-        style={styles.addButton}
-        onPress={() => router.push("/events/create")}
-      >
+      <TouchableOpacity style={styles.addButton} onPress={() => router.push("/events/create")}>
         <Text style={styles.addButtonText}>＋</Text>
       </TouchableOpacity>
 
@@ -122,50 +150,49 @@ export default function EventsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: "#F8FFF8",
     paddingTop: 60,
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
   },
-  attendeeCount: {
-    fontSize: 12,
-    color: "#666",
-    marginTop: 4,
-  },
-
   logo: {
-    width: 160,
-    height: 60,
+    width: 140,
+    height: 90,
     resizeMode: "contain",
     alignSelf: "center",
-    marginBottom: 20,
+    marginBottom: 10,
   },
   title: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: "bold",
-    color: "#333",
-    marginBottom: 20,
+    color: "#3DDC84",
     textAlign: "center",
+    marginBottom: 20,
   },
   eventCard: {
+    backgroundColor: "#FFF0F0",
+    borderRadius: 12,
     flexDirection: "row",
-    backgroundColor: "#F9F9F9",
-    borderRadius: 10,
     marginBottom: 16,
+    shadowColor: "blue",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 6,
     overflow: "hidden",
-    elevation: 2,
   },
   eventImage: {
-    width: 90,
-    height: 90,
+    width: 100,
+    height: 100,
+    borderRadius: 8,
   },
   eventInfo: {
     flex: 1,
-    padding: 10,
+    padding: 12,
     justifyContent: "space-between",
   },
   eventName: {
-    fontWeight: "bold",
     fontSize: 16,
+    fontWeight: "bold",
     color: "#333",
   },
   eventMeta: {
@@ -173,35 +200,41 @@ const styles = StyleSheet.create({
     color: "#666",
   },
   gradientButton: {
+    marginTop: 8,
     paddingVertical: 6,
     paddingHorizontal: 14,
-    borderRadius: 20,
+    borderRadius: 18,
     alignSelf: "flex-end",
-    marginTop: 6,
   },
   buttonText: {
     color: "#fff",
     fontSize: 12,
-    fontWeight: "bold",
+    fontWeight: "600",
+  },
+  attendeeCount: {
+    fontSize: 11,
+    color: "#999",
+    marginTop: 4,
+    alignSelf: "flex-end",
   },
   addButton: {
     position: "absolute",
     bottom: 80,
     right: 20,
-    backgroundColor: "#FF6C00",
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    backgroundColor: "#3DDC84",
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     justifyContent: "center",
     alignItems: "center",
     shadowColor: "#000",
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.2,
     shadowOffset: { width: 0, height: 2 },
     shadowRadius: 4,
-    elevation: 5,
+    elevation: 9,
   },
   addButtonText: {
-    fontSize: 30,
+    fontSize: 28,
     color: "#fff",
     fontWeight: "bold",
   },

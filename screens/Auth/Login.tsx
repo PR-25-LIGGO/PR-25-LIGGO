@@ -1,16 +1,33 @@
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from "react-native";
+import React, { useState } from "react";
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  Alert,
+} from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import { useState } from "react";
 import { useRouter } from "expo-router";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "../../services/firebase";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import React from "react";
+import { Ionicons } from "@expo/vector-icons";
 
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
+
+  // Función para eliminar espacios al escribir
+  const handleEmailChange = (text: string) => {
+    setEmail(text.replace(/\s/g, ""));
+  };
+
+  const handlePasswordChange = (text: string) => {
+    setPassword(text.replace(/\s/g, ""));
+  };
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -33,9 +50,26 @@ export default function Login() {
       Alert.alert("Bienvenido", "Sesión iniciada con éxito");
       router.push("/auth/swipe-screen");
     } catch (error: any) {
-      Alert.alert("Error al iniciar sesión", error.message);
+
+      switch (error.code) {
+        case "auth/wrong-password":
+          Alert.alert("Contraseña incorrecta", "La contraseña que ingresaste es incorrecta.");
+          break;
+        case "auth/user-not-found":
+          Alert.alert("Usuario no encontrado", "No existe una cuenta con este correo.");
+          break;
+        case "auth/invalid-email":
+          Alert.alert("Correo inválido", "El correo electrónico no tiene un formato válido.");
+          break;
+          case "auth/invalid-credential":
+          Alert.alert("Contraseña incorrecta");
+          break;
+        default:
+          Alert.alert("Error al iniciar sesión", error.message);
+      }
     }
   };
+
 
   return (
     <View style={styles.container}>
@@ -49,18 +83,35 @@ export default function Login() {
         placeholder="Correo institucional"
         placeholderTextColor="#999"
         value={email}
-        onChangeText={setEmail}
+        onChangeText={handleEmailChange}
         style={styles.input}
+        keyboardType="email-address"
+        autoCapitalize="none"
+        autoCorrect={false}
       />
 
-      <TextInput
-        placeholder="Contraseña"
-        placeholderTextColor="#999"
-        secureTextEntry
-        value={password}
-        onChangeText={setPassword}
-        style={styles.input}
-      />
+      <View style={styles.passwordContainer}>
+        <TextInput
+          placeholder="Contraseña"
+          placeholderTextColor="#999"
+          secureTextEntry={!showPassword}
+          value={password}
+          onChangeText={handlePasswordChange}
+          style={[styles.input, { flex: 1 }]}
+          autoCapitalize="none"
+          autoCorrect={false}
+        />
+        <TouchableOpacity
+          onPress={() => setShowPassword((prev) => !prev)}
+          style={styles.eyeButton}
+        >
+          <Ionicons
+            name={showPassword ? "eye-off" : "eye"}
+            size={24}
+            color="#999"
+          />
+        </TouchableOpacity>
+      </View>
 
       <TouchableOpacity onPress={() => router.push("/auth/forgot")}>
         <Text style={styles.forgotText}>¿Olvidaste tu contraseña?</Text>
@@ -104,6 +155,14 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     fontSize: 16,
     marginBottom: 24,
+    color: "#000",
+  },
+  passwordContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  eyeButton: {
+    paddingHorizontal: 8,
   },
   forgotText: {
     textAlign: "center",

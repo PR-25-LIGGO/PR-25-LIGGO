@@ -28,7 +28,7 @@ export default function CreateEventScreen() {
       setImage(result.assets[0].uri);
     }
   };
-  
+
 
   const handleSubmit = async () => {
     console.log("handleSubmit fue llamado");
@@ -45,8 +45,7 @@ export default function CreateEventScreen() {
         return;
       }
 
-      const dateStr = selectedDate.toLocaleDateString();
-
+      const dateStr = selectedDate.toISOString().split("T")[0]; 
       const exists = await hasEventOnDate(uid, dateStr);
       if (exists) {
         alert("Ya has creado un evento para esta fecha.");
@@ -56,7 +55,7 @@ export default function CreateEventScreen() {
       const imageUrl = await uploadImageToStorage(image);
       const timeStr = selectedTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
 
-      await createEvent({
+      const eventId = await createEvent({
         title,
         date: dateStr,
         time: timeStr,
@@ -65,7 +64,11 @@ export default function CreateEventScreen() {
       });
 
       alert("Evento creado 🎉");
-      router.back();
+      router.push({
+        pathname: "/events/EventDetails/[id]",
+        params: { id: eventId }
+      });
+
     } catch (error: any) {
       alert("Error al crear evento: " + error.message);
     }

@@ -14,7 +14,7 @@ import { useState } from "react";
 import { auth, db } from "../../services/firebase";
 import { doc, setDoc } from "firebase/firestore";
 import { Alert } from "react-native";
-
+import { useEffect } from "react";
 const CAREERS = [
   "Arquitectura", "Ingeniería Civil", "Medicina", "Odontología", "Psicología",
   "Derecho", "Administración de Empresas", "Contaduría Pública",
@@ -29,6 +29,12 @@ const CAREERS = [
 
 export default function NameScreen() {
   const router = useRouter();
+
+  useEffect(() => {
+    if (!auth.currentUser) {
+      router.replace("/auth/login"); // O la pantalla inicial que uses
+    }
+  }, []);
   const [name, setName] = useState("");
   const [selectedCareer, setSelectedCareer] = useState<string | null>(null);
 

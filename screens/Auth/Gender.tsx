@@ -18,26 +18,26 @@ export default function Gender() {
       Alert.alert("Selecciona una opción", "Debes elegir un género para continuar");
       return;
     }
-  
+
     const uid = auth.currentUser?.uid;
     if (!uid) {
       Alert.alert("Error", "No hay usuario autenticado");
       return;
     }
-  
+
     try {
       const userRef = doc(db, "users", uid);
       await setDoc(userRef, {
         gender: selected,
         showGender: show,
       }, { merge: true });
-  
+
       router.push("/auth/interest"); // o la siguiente pantalla
     } catch (error: any) {
       Alert.alert("Error al guardar", error.message);
     }
   };
-  
+
   return (
     <View style={styles.container}>
       <TouchableOpacity onPress={() => router.back()} style={styles.backArrow}>
@@ -58,16 +58,6 @@ export default function Gender() {
         </TouchableOpacity>
       ))}
 
-      <View style={styles.checkboxContainer}>
-        <BouncyCheckbox
-          size={20}
-          fillColor="#a855f7"
-          unFillColor="#fff"
-          isChecked={show}
-          onPress={() => setShow(!show)}
-        />
-        <Text style={styles.checkboxLabel}>Mostrar mi género en el perfil</Text>
-      </View>
 
       <TouchableOpacity onPress={handleContinue} style={styles.buttonWrapper}>
         <LinearGradient
@@ -107,7 +97,7 @@ const styles = StyleSheet.create({
     borderRadius: 25,
     paddingVertical: 12,
     alignItems: "center",
-    marginBottom: 16,
+    marginBottom: 30,
   },
   selected: {
     backgroundColor: "#f2f2f2",
@@ -118,15 +108,6 @@ const styles = StyleSheet.create({
   },
   selectedText: {
     fontWeight: "bold",
-  },
-  checkboxContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 30,
-  },
-  checkboxLabel: {
-    marginLeft: 0,
-    color: "#777",
   },
   buttonWrapper: {
     alignItems: "center",

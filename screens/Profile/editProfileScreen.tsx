@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -54,7 +54,7 @@ export default function EditProfileScreen() {
   const [name, setName] = useState("");
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
-  const [photos, setPhotos] = useState<(string | null)[]>([null, null]);
+  const [photos, setPhotos] = useState<(string | null)[]>(Array(6).fill(null)); // Max 6 photos
   const [saving, setSaving] = useState(false);
 
   // Cargar datos actuales
@@ -70,7 +70,8 @@ export default function EditProfileScreen() {
           const data = docSnap.data();
           setName(data.name || "");
           setSelectedInterests(data.interests || []);
-          setPhotos(data.photos || [null, null]); // Cargar las fotos actuales
+          const loadedPhotos = data.photos || [];
+          setPhotos(loadedPhotos.concat(Array(6 - loadedPhotos.length).fill(null)));
         }
       } catch (error) {
         Alert.alert("Error", "No se pudo cargar el perfil");
@@ -120,8 +121,8 @@ export default function EditProfileScreen() {
     }
 
     const selectedPhotos = photos.filter((p) => p !== null) as string[];
-    if (selectedPhotos.length < 2) {
-      Alert.alert("Fotos requeridas", "Por favor agrega al menos dos fotos");
+    if (selectedPhotos.length < 2 || selectedPhotos.length > 6) {
+      Alert.alert("Fotos requeridas", "Por favor agrega entre 2 y 6 fotos");
       return;
     }
 
@@ -136,7 +137,8 @@ export default function EditProfileScreen() {
       for (let i = 0; i < selectedPhotos.length; i++) {
         const response = await fetch(selectedPhotos[i]);
         const blob = await response.blob();
-        const filename = `users/${uid}/photo${i + 1}.jpg`;
+const filename = `users/${uid}/photo${i + 1}.jpg`;
+
         const imageRef = ref(storage, filename);
         await uploadBytes(imageRef, blob);
         const url = await getDownloadURL(imageRef);
@@ -165,8 +167,17 @@ export default function EditProfileScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 30 }}>
-      {/* Logo */}
-      <Image source={require("@/assets/logo-liggo.png")} style={styles.logo} resizeMode="contain" />
+      {/* Top Bar: Logo y botón Atrás */}
+      <View style={styles.topBar}>
+        <Image
+          source={require('@/assets/logo-liggo.png')}
+          style={styles.logo}
+          resizeMode="contain"
+        />
+        <TouchableOpacity onPress={() => router.back()}>
+          <Text style={styles.backButton}>Atrás</Text>
+        </TouchableOpacity>
+      </View>
 
       <Text style={styles.label}>Nombre completo</Text>
       <TextInput
@@ -230,11 +241,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingTop: 60,
   },
+  topBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
   logo: {
     width: 160,
-    height: 60,
+    height: 80,
     alignSelf: "center",
-    marginBottom: 20,
+  },
+  backButton: {
+    backgroundColor: '#DC2D22',
+    color: '#fff',
+    fontSize: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
   },
   label: {
     fontSize: 16,
@@ -281,6 +305,7 @@ const styles = StyleSheet.create({
   },
   photosContainer: {
     flexDirection: "row",
+    flexWrap: "wrap",
     gap: 10,
     marginBottom: 20,
   },
@@ -292,12 +317,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 12,
     borderRadius: 8,
+    position: "relative",
   },
   photoWrapper: {
     width: "100%",
     height: "100%",
     borderRadius: 8,
-    position: "relative",
   },
   photo: {
     width: "100%",
