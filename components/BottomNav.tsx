@@ -17,7 +17,7 @@ export default function BottomNav() {
             <TouchableOpacity onPress={() => router.push("/chats/chats-screen")}>
                 <Ionicons name="chatbubbles" size={32} color="gray" />
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => router.push("/profile/profile-screen")}>
+            <TouchableOpacity onPress={() => router.push("/profile/user-profile-screen")}>
                 <Ionicons name="person" size={32} color="gray" />
             </TouchableOpacity>
         </View>

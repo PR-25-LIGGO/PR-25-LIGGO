@@ -115,6 +115,7 @@ export default function SwipeScreen() {
     const userId = await AsyncStorage.getItem("userId");
     if (!userId) throw new Error("Usuario no autenticado");
 
+    // 🔹 1. Buscar todos los swipes rechazados
     const rejectedSnapshot = await getDocs(
       query(
         collection(db, "swipes"),
@@ -123,27 +124,31 @@ export default function SwipeScreen() {
       )
     );
 
-    if (rejectedSnapshot.empty) {
-      console.log("⚠️ No hay usuarios rechazados para este usuario.");
-      return;
+    const rejectedUserIds = rejectedSnapshot.docs.map(doc => doc.data().toUserId);
+
+    // 🔹 2. Verificar que NO haya match recíproco
+    const validRejected: string[] = [];
+    for (const rejectedId of rejectedUserIds) {
+      const reciprocalMatchQuery = query(
+        collection(db, "swipes"),
+        where("fromUserId", "==", rejectedId),
+        where("toUserId", "==", userId),
+        where("tipo", "==", "match")
+      );
+      const matchSnap = await getDocs(reciprocalMatchQuery);
+      if (matchSnap.empty) validRejected.push(rejectedId);
     }
 
-    const rejectedUserIds = rejectedSnapshot.docs.map(doc => doc.data().toUserId);
-    console.log("Usuarios rechazados encontrados:", rejectedUserIds);
+    
 
-    const rejectedUsers = await Promise.all(rejectedUserIds.map(async (rejectedId) => {
-      const userDoc = await getDoc(doc(db, "users", rejectedId));
-      if (userDoc.exists()) {
-        return { id: rejectedId, ...userDoc.data() } as User;
-      }
+    // 🔹 3. Obtener los datos de usuario
+    const userDocs = await Promise.all(validRejected.map(async (uid) => {
+      const docSnap = await getDoc(doc(db, "users", uid));
+      if (docSnap.exists()) return { id: uid, ...docSnap.data() } as User;
       return null;
     }));
 
-    const filtered = rejectedUsers.filter(Boolean) as User[];
-    if (filtered.length === 0) {
-      console.log("⚠️ Ninguno de los usuarios rechazados existe aún.");
-    }
-
+    const filtered = userDocs.filter(Boolean) as User[];
     setUsers(filtered);
     setCurrentIndex(0);
     setNoMoreUsers(false);
@@ -151,6 +156,7 @@ export default function SwipeScreen() {
     console.error("Error al cargar rechazados:", error);
   }
 };
+
 
 
   if (loading) {

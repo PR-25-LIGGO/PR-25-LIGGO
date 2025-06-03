@@ -141,7 +141,7 @@ export default function MatchProfileInfo() {
       <View style={styles.topBar}>
         <Image source={require('@/assets/logo-liggo.png')} style={styles.logo} resizeMode="contain" />
         <TouchableOpacity onPress={() => router.back()}>
-          <Text style={styles.backButton}>Atrás</Text>
+          <Text style={styles.backButton}>Atras</Text>
         </TouchableOpacity>
       </View>
 
@@ -218,7 +218,7 @@ const styles = StyleSheet.create({
   },
   logo: {
     width: 120,
-    height: 60,
+    height: 80,
   },
   backButton: {
     backgroundColor: '#DC2D22',
