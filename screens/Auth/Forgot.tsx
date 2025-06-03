@@ -4,7 +4,45 @@ import { useRouter } from "expo-router";
 
 export default function Forgot() {
   const router = useRouter();
+<<<<<<< Updated upstream
   const [email, setEmail] = useState("");
+=======
+
+  const handleResetPassword = async () => {
+    if (!email.endsWith("@est.univalle.edu")) {
+      Alert.alert("Correo inválido", "Debes usar tu correo institucional");
+      return;
+    }
+
+    try {
+      await sendPasswordResetEmail(auth, email);
+      Alert.alert(
+        "Correo enviado",
+        "Te hemos enviado un enlace para restablecer tu contraseña"
+      );
+      router.back();
+    } catch (error: any) {
+      let message = "Ocurrió un error al intentar recuperar la contraseña.";
+
+      switch (error.code) {
+        case "auth/user-not-found":
+          message = "Este correo no está registrado en nuestra base de datos.";
+          break;
+        case "auth/invalid-email":
+          message = "El formato del correo no es válido.";
+          break;
+        case "auth/too-many-requests":
+          message = "Se ha solicitado la recuperación varias veces. Intenta más tarde.";
+          break;
+        default:
+          message = error.message;
+          break;
+      }
+
+      Alert.alert("Error", message);
+    }
+  };
+>>>>>>> Stashed changes
 
   return (
     <View style={styles.container}>
@@ -18,15 +56,20 @@ export default function Forgot() {
         placeholder="Correo institucional"
         placeholderTextColor="#999"
         value={email}
-        onChangeText={setEmail}
+        onChangeText={(text) => setEmail(text.trim().replace(/\s/g, ""))}
         style={styles.input}
       />
 
+<<<<<<< Updated upstream
       <Text style={styles.info}>
         Te enviaremos un código de verificación a tu correo institucional para verificar que eres tú
       </Text>
 
       <TouchableOpacity onPress={() => router.push("/auth/new-password")} style={styles.buttonWrapper}>
+=======
+
+      <TouchableOpacity onPress={handleResetPassword} style={styles.buttonWrapper}>
+>>>>>>> Stashed changes
         <LinearGradient
           colors={["#4eff6a", "#ff87d2"]}
           start={{ x: 0, y: 0 }}
@@ -36,6 +79,13 @@ export default function Forgot() {
           <Text style={styles.buttonText}>CONTINUAR</Text>
         </LinearGradient>
       </TouchableOpacity>
+<<<<<<< Updated upstream
+=======
+      <Text style={styles.note}>
+        El correo puede tardar algunos minutos en llegar. Revisa tu bandeja de entrada y también el spam.
+      </Text>
+
+>>>>>>> Stashed changes
     </View>
   );
 }
@@ -67,6 +117,16 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginBottom: 24,
   },
+<<<<<<< Updated upstream
+=======
+  note: {
+    fontSize: 14,
+    color: "#888",
+    marginVertical: 10,
+    textAlign: "center",
+  },
+
+>>>>>>> Stashed changes
   info: {
     textAlign: "center",
     fontSize: 14,

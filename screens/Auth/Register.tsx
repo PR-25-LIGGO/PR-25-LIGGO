@@ -1,7 +1,23 @@
-import { View, Text, TextInput, TouchableOpacity, StyleSheet } from "react-native";
+import React, { useState } from "react";
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  Alert,
+} from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import { useState } from "react";
 import { useRouter } from "expo-router";
+<<<<<<< Updated upstream
+=======
+import { createUserWithEmailAndPassword } from "firebase/auth";
+import { auth } from "../../services/firebase";
+import { doc, setDoc } from "firebase/firestore";
+import { db } from "../../services/firebase";
+import { sendEmailVerification } from "firebase/auth";
+import { Ionicons } from "@expo/vector-icons";
+>>>>>>> Stashed changes
 
 export default function Register() {
   const router = useRouter();
@@ -14,6 +30,64 @@ export default function Register() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
 
+<<<<<<< Updated upstream
+=======
+  const validatePassword = (pwd: string) => {
+    if (pwd.length < 6) return false;
+    if (!/[A-Z]/.test(pwd)) return false;
+    return true;
+  };
+
+  const handleRegister = async () => {
+    const trimmedEmail = email.trim();
+    const trimmedPassword = password.trim();
+    const trimmedConfirm = confirm.trim();
+
+    if (!trimmedEmail || !trimmedPassword || !trimmedConfirm) {
+      Alert.alert("Error", "Todos los campos son obligatorios");
+      return;
+    }
+
+    if (!trimmedEmail.endsWith("@est.univalle.edu")) {
+      Alert.alert("Correo inválido", "Usa tu correo institucional (@est.univalle.edu)");
+      return;
+    }
+
+    if (!validatePassword(trimmedPassword)) {
+      Alert.alert(
+        "Contraseña inválida",
+        "La contraseña debe tener al menos 6 caracteres y contener al menos una letra mayúscula."
+      );
+      return;
+    }
+
+    if (trimmedPassword !== trimmedConfirm) {
+      Alert.alert("Contraseñas no coinciden", "Revisa que ambas contraseñas sean iguales");
+      return;
+    }
+
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, trimmedEmail, trimmedPassword);
+      const user = userCredential.user;
+
+      await sendEmailVerification(user);
+
+      Alert.alert(
+        "Verificación enviada",
+        "Hemos enviado un enlace de verificación a tu correo. Revisa tu bandeja de entrada o spam."
+      );
+
+      await setDoc(doc(db, "users", user.uid), {
+        createdAt: new Date().toISOString(),
+      });
+
+      router.push("/auth/verify-code");
+    } catch (error: any) {
+      Alert.alert("Error al registrarse", error.message);
+    }
+  };
+
+>>>>>>> Stashed changes
   return (
     <View style={styles.container}>
       <TouchableOpacity onPress={() => router.back()} style={styles.backArrow}>
@@ -34,6 +108,8 @@ export default function Register() {
         placeholderTextColor="#999"
         value={email}
         onChangeText={setEmail}
+        autoCapitalize="none"
+        keyboardType="email-address"
         style={styles.input}
       />
 
@@ -45,9 +121,15 @@ export default function Register() {
           value={password}
           onChangeText={setPassword}
           style={[styles.input, { flex: 1 }]}
+          autoCapitalize="none"
         />
         <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-          <Text style={styles.eye}>{showPassword ? "🙈" : "👁"}</Text>
+          <Ionicons
+            name={showPassword ? "eye-off" : "eye"}
+            size={24}
+            color="#333"
+            style={{ marginLeft: 10 }}
+          />
         </TouchableOpacity>
       </View>
 
@@ -59,9 +141,15 @@ export default function Register() {
           value={confirm}
           onChangeText={setConfirm}
           style={[styles.input, { flex: 1 }]}
+          autoCapitalize="none"
         />
         <TouchableOpacity onPress={() => setShowConfirm(!showConfirm)}>
-          <Text style={styles.eye}>{showConfirm ? "🙈" : "👁"}</Text>
+          <Ionicons
+            name={showConfirm ? "eye-off" : "eye"}
+            size={24}
+            color="#333"
+            style={{ marginLeft: 10 }}
+          />
         </TouchableOpacity>
       </View>
 
@@ -108,10 +196,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     marginBottom: 24,
-  },
-  eye: {
-    fontSize: 20,
-    marginLeft: 10,
   },
   buttonWrapper: {
     alignItems: "center",

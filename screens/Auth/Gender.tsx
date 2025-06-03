@@ -29,16 +29,6 @@ export default function Gender() {
         </TouchableOpacity>
       ))}
 
-      <View style={styles.checkboxContainer}>
-        <BouncyCheckbox
-          size={20}
-          fillColor="#a855f7"
-          unFillColor="#fff"
-          isChecked={show}
-          onPress={() => setShow(!show)}
-        />
-        <Text style={styles.checkboxLabel}>Mostrar mi género en el perfil</Text>
-      </View>
 
       <TouchableOpacity
         onPress={() => router.push("/auth/interest")}

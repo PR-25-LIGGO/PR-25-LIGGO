@@ -1,4 +1,21 @@
+<<<<<<< Updated upstream
 import { View, Text, StyleSheet, Image, ScrollView } from "react-native";
+=======
+import React, { useEffect, useState, useCallback } from "react";
+import {
+  View,
+  Text,
+  FlatList,
+  TouchableOpacity,
+  StyleSheet,
+  Image,
+  BackHandler,
+} from "react-native";
+import { useRouter, useFocusEffect } from "expo-router";
+import { collection, query, where, getDocs, doc, getDoc } from "firebase/firestore";
+import { db } from "@/services/firebase";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+>>>>>>> Stashed changes
 import BottomNav from "@/components/BottomNav";
 
 export default function ChatsScreen() {
@@ -55,6 +72,7 @@ export default function ChatsScreen() {
                 </View>
             </ScrollView>
 
+<<<<<<< Updated upstream
             <BottomNav />
         </View>
     );
@@ -135,3 +153,107 @@ const styles = StyleSheet.create({
         fontWeight: "bold",
     },
 });
+=======
+        const userDoc = await getDoc(doc(db, "users", otherUserId));
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          matchedUsers.push({
+            id: chatid,
+            name: userData.name,
+            photos: userData.photos || [],
+          });
+        }
+      }
+
+      setMatches(matchedUsers);
+    };
+
+    fetchMatches();
+  }, []);
+
+  const goToChat = (chatId: string, name: string) => {
+    router.push({
+      pathname: "/chats/UserChat/[chatId]",
+      params: { chatId, name },
+    });
+  };
+
+  useFocusEffect(
+    useCallback(() => {
+      const onBackPress = () => {
+        router.replace("/auth/swipe-screen");
+        return true;
+      };
+
+      BackHandler.addEventListener("hardwareBackPress", onBackPress);
+      return () => BackHandler.removeEventListener("hardwareBackPress", onBackPress);
+    }, [])
+  );
+
+  return (
+    <>
+      <View style={styles.container}>
+        {/* Header con logo */}
+        <View style={styles.header}>
+          <Image
+            source={require("@/assets/logo-liggo.png")}
+            style={styles.logo}
+            resizeMode="contain"
+          />
+        </View>
+
+        <Text style={styles.title}>Tus Matches</Text>
+
+        <FlatList
+          data={matches}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => (
+            <TouchableOpacity style={styles.card} onPress={() => goToChat(item.id, item.name)}>
+              <Text style={styles.name}>{item.name}</Text>
+            </TouchableOpacity>
+          )}
+          ListEmptyComponent={
+            <Text style={{ textAlign: "center", marginTop: 20 }}>No tienes matches aún</Text>
+          }
+        />
+      </View>
+
+      <BottomNav />
+    </>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#fff",
+    paddingHorizontal: 20,
+    paddingTop: 60,
+  },
+  header: {
+    height: 60,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 10,
+  },
+  logo: {
+    width: 160,
+    height: 40,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: "bold",
+    marginBottom: 20,
+    textAlign: "center",
+  },
+  card: {
+    backgroundColor: "#eee",
+    padding: 15,
+    borderRadius: 10,
+    marginBottom: 10,
+  },
+  name: {
+    fontSize: 18,
+  },
+});
+>>>>>>> Stashed changes

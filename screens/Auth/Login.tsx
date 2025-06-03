@@ -1,13 +1,66 @@
+<<<<<<< Updated upstream
 import { View, Text, TextInput, TouchableOpacity, StyleSheet } from "react-native";
+=======
+import React, { useState } from "react";
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  Alert,
+} from "react-native";
+>>>>>>> Stashed changes
 import { LinearGradient } from "expo-linear-gradient";
-import { useState } from "react";
 import { useRouter } from "expo-router";
+<<<<<<< Updated upstream
+=======
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { auth } from "../../services/firebase";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Ionicons } from "@expo/vector-icons";
+>>>>>>> Stashed changes
 
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
 
+<<<<<<< Updated upstream
+=======
+  const handleLogin = async () => {
+    const trimmedEmail = email.trim();
+    const trimmedPassword = password.trim();
+
+    if (!trimmedEmail || !trimmedPassword) {
+      Alert.alert("Campos vacíos", "Ingresa tu correo y contraseña");
+      return;
+    }
+
+    if (!trimmedEmail.endsWith("@est.univalle.edu")) {
+      Alert.alert("Correo inválido", "Debes usar tu correo institucional");
+      return;
+    }
+
+    if (trimmedPassword.length < 6) {
+      Alert.alert("Contraseña muy corta", "La contraseña debe tener al menos 6 caracteres");
+      return;
+    }
+
+    try {
+      const userCredential = await signInWithEmailAndPassword(auth, trimmedEmail, trimmedPassword);
+      const user = userCredential.user;
+
+      await AsyncStorage.setItem("userId", user.uid);
+      Alert.alert("Bienvenido", "Sesión iniciada con éxito");
+      router.push("/auth/swipe-screen");
+    } catch (error: any) {
+      Alert.alert("Error al iniciar sesión", error.message);
+    }
+  };
+
+>>>>>>> Stashed changes
   return (
     <View style={styles.container}>
       <TouchableOpacity onPress={() => router.back()} style={styles.backArrow}>
@@ -20,18 +73,29 @@ export default function Login() {
         placeholder="Correo institucional"
         placeholderTextColor="#999"
         value={email}
-        onChangeText={setEmail}
+        onChangeText={(text) => setEmail(text.trim())}
         style={styles.input}
+        keyboardType="email-address"
+        autoCapitalize="none"
       />
 
-      <TextInput
-        placeholder="Contraseña"
-        placeholderTextColor="#999"
-        secureTextEntry
-        value={password}
-        onChangeText={setPassword}
-        style={styles.input}
-      />
+      <View style={styles.passwordContainer}>
+        <TextInput
+          placeholder="Contraseña"
+          placeholderTextColor="#999"
+          secureTextEntry={!showPassword}
+          value={password}
+          onChangeText={(text) => setPassword(text.trim())}
+          style={styles.passwordInput}
+        />
+        <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
+          <Ionicons
+            name={showPassword ? "eye-off-outline" : "eye-outline"}
+            size={24}
+            color="#777"
+          />
+        </TouchableOpacity>
+      </View>
 
       <TouchableOpacity onPress={() => router.push("/auth/forgot")}>
         <Text style={styles.forgotText}>¿Olvidaste tu contraseña?</Text>
@@ -75,6 +139,21 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     fontSize: 16,
     marginBottom: 24,
+  },
+  passwordContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderBottomWidth: 1,
+    borderBottomColor: "#ccc",
+    marginBottom: 24,
+  },
+  passwordInput: {
+    flex: 1,
+    paddingVertical: 10,
+    fontSize: 16,
+  },
+  eyeIcon: {
+    paddingHorizontal: 10,
   },
   forgotText: {
     textAlign: "center",
