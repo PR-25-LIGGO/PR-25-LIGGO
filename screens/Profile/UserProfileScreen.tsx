@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -8,7 +8,7 @@ import {
   ActivityIndicator,
   TouchableOpacity,
   Modal,
-  BackHandler,
+  BackHandler
 } from "react-native";
 import { auth, db } from "@/services/firebase";
 import { doc, getDoc } from "firebase/firestore";
@@ -27,45 +27,43 @@ interface UserProfile {
 }
 
 export default function UserProfileScreen() {
-  const [userProfile, setUserProfile] = React.useState<UserProfile | null>(null);
-  const [loading, setLoading] = React.useState(true);
-  const [modalVisible, setModalVisible] = React.useState(false);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [modalVisible, setModalVisible] = useState(false);
   const router = useRouter();
 
-  const fetchUserProfile = async () => {
-    setLoading(true);
-    const uid = auth.currentUser?.uid;
-    if (!uid) {
-      setUserProfile(null);
-      setLoading(false);
-      return;
-    }
-    try {
-      const docRef = doc(db, "users", uid);
-      const docSnap = await getDoc(docRef);
-      if (docSnap.exists()) {
-        setUserProfile(docSnap.data() as UserProfile);
-      } else {
+  useEffect(() => {
+    async function fetchUserProfile() {
+      const uid = auth.currentUser?.uid;
+      if (!uid) {
         setUserProfile(null);
+        setLoading(false);
+        return;
       }
-    } catch (error) {
-      console.error("Error loading user profile:", error);
-      setUserProfile(null);
-    } finally {
-      setLoading(false);
+      try {
+        const docRef = doc(db, "users", uid);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          setUserProfile(docSnap.data() as UserProfile);
+        } else {
+          setUserProfile(null);
+        }
+      } catch (error) {
+        console.error("Error loading user profile:", error);
+        setUserProfile(null);
+      } finally {
+        setLoading(false);
+      }
     }
-  };
+    fetchUserProfile();
+  }, []);
 
-  // Recarga el perfil cada vez que la pantalla tiene foco
   useFocusEffect(
     React.useCallback(() => {
-      fetchUserProfile();
-
       const onBackPress = () => {
         router.replace("/auth/swipe-screen");
-        return true; // Para indicar que manejamos el back
+        return true;
       };
-
       BackHandler.addEventListener("hardwareBackPress", onBackPress);
       return () => BackHandler.removeEventListener("hardwareBackPress", onBackPress);
     }, [])
@@ -141,16 +139,15 @@ export default function UserProfileScreen() {
           )}
 
           <Text style={styles.name}>
-            {userProfile.name || "Nombre no disponible"}
-            {age !== null ? `, ${age}` : ""}
+  {userProfile.name || "Nombre no disponible"}
+  {age !== null ? `, ${age}` : ""}
+</Text>
 
-          </Text>
 
-          {/* Botones editar perfil y cerrar sesión */}
           <View style={styles.actionButtonsRow}>
             <TouchableOpacity
               style={styles.actionButtonEdit}
-              onPress={() => router.push("/profile/edit-profile-screen")}
+              onPress={() => router.push("/profile/edit")}
             >
               <Ionicons name="create-outline" size={30} color="#999" />
               <Text style={styles.actionButtonLabel}>Editar perfil</Text>
@@ -179,7 +176,6 @@ export default function UserProfileScreen() {
             </>
           )}
 
-          {/* Galería de fotos extra */}
           {userProfile.photos && userProfile.photos.length > 1 && (
             <View style={styles.galleryContainer}>
               {userProfile.photos.slice(1).map((photo, idx) => (
@@ -192,7 +188,6 @@ export default function UserProfileScreen() {
 
       <BottomNav />
 
-      {/* Modal para confirmar cierre de sesión */}
       <Modal
         transparent
         visible={modalVisible}
@@ -377,5 +372,5 @@ const styles = StyleSheet.create({
   modalConfirmText: {
     color: "#fff",
     fontWeight: "bold",
-  },
+  },
 });

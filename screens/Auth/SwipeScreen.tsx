@@ -169,40 +169,39 @@ export default function SwipeScreen() {
     cards={users}
     cardIndex={currentIndex}
     renderCard={(card) => (
-      <View style={styles.card}>
-        <Image
-          source={require("@/assets/logo-liggo.png")}
-          style={styles.logo}
-          resizeMode="contain"
-        />
-        <Text style={styles.sugerencia}>Desliza a la Izquierda para Rechazar</Text>
-        <Text style={styles.sugerencia}> Desliza a la Derecha para hacer Match</Text>
-        {card?.photos?.length > 0 ? (
-  <Image source={{ uri: card.photos[0] }} style={styles.image} />
-) : (
-  <Text style={styles.noImageText}>Sin fotos disponibles</Text>
+  <View style={styles.card}>
+    <Image
+      source={require("@/assets/logo-liggo.png")}
+      style={styles.logo}
+      resizeMode="contain"
+    />
+
+    <Text style={styles.sugerencia}>⬅️ Desliza a la izquierda para ❌</Text>
+    <Text style={styles.sugerencia}>➡️ Desliza a la derecha para ❤️</Text>
+
+    {card?.photos?.length > 0 ? (
+      <Image source={{ uri: card.photos[0] }} style={styles.image} />
+    ) : (
+      <Text style={styles.noImageText}>Sin fotos disponibles</Text>
+    )}
+
+    <Text style={styles.name}>{card?.name || "Usuario desconocido"}</Text>
+    <Text style={styles.ageText}>
+      {calculateAge(card?.birthdate || "2000-01-01")} años
+    </Text>
+
+    <TouchableOpacity
+      style={styles.infoButton}
+      onPress={() =>
+        router.push(`/profile/profile-screen?id=${card.id}`)
+      }
+    >
+      <Ionicons name="information-circle-outline" size={50} color="#555"  />
+    </TouchableOpacity>
+  </View>
+
 )}
 
-
-        <Text style={styles.name}>{card?.name || "Usuario desconocido"}</Text>
-        <Text>{calculateAge(card?.birthdate || "2000-01-01")} años</Text>
-
-        <View style={styles.actionButtons}>
-          <TouchableOpacity
-            style={styles.infoButton}
-            onPress={() =>
-              router.push(`/profile/profile-screen?id=${card.id}`)
-            }
-          >
-            <Ionicons
-              name="information-circle-outline"
-              size={30}
-              color="#333"
-            />
-          </TouchableOpacity>
-        </View>
-      </View>
-    )}
     onSwipedLeft={(index) => {
       const userId = users[index]?.id;
       if (userId) handleSwipe(userId, "reject");
@@ -267,10 +266,10 @@ const styles = StyleSheet.create({
     margin: 10,
     borderColor: '#3DDC84',
     borderWidth: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowColor: 'green',
+    shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.2,
-    shadowRadius: 6,
+    shadowRadius: 12,
     elevation: 4,
   },
   image: {
@@ -280,6 +279,10 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     borderWidth: 2,
     borderColor: '#DC2D22',
+    shadowColor: "red",
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 9,
   },
   logo: {
     width: 140,
@@ -292,36 +295,21 @@ const styles = StyleSheet.create({
     marginTop: 10,
     color: '#222',
   },
-  actionButtons: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginTop: 20,
-    width: '60%',
-  },
+
   infoButton: {
-    borderRadius: 30,
+    borderRadius: 50,
     padding: 10,
     borderWidth: 2,
     borderColor: '#555',
   },
-  matchButton: {
-    borderRadius: 30,
-    padding: 10,
-    borderWidth: 2,
-    borderColor: '#1FA867',
-  },
+  
   noImageText: {
     fontSize: 16,
     color: '#888',
     marginTop: 20,
     fontStyle: 'italic',
   },
-  rejectButton: {
-    borderRadius: 30,
-    padding: 10,
-    borderWidth: 2,
-    borderColor: '#DC2D22',
-  },
+  
   retryButton: {
   backgroundColor: '#3DDC84',
   paddingVertical: 12,
@@ -334,6 +322,18 @@ retryText: {
   fontSize: 16,
   textAlign: 'center',
   fontWeight: 'bold',
+},
+
+ageText: {
+  fontSize: 18,
+  color: '#666',
+  marginTop: 4,
+},
+divider: {
+  width: '90%',
+  height: 1,
+  backgroundColor: '#eee',
+  marginVertical: 10,
 },
 
 });
