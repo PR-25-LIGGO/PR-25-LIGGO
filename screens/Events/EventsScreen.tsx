@@ -20,7 +20,7 @@ import {
 import BottomNav from "@/components/BottomNav";
 import { useFocusEffect } from '@react-navigation/native';
 import { useCallback } from 'react';
-
+import { BackHandler } from "react-native";
 
 export default function EventsScreen() {
   const router = useRouter();
@@ -28,48 +28,59 @@ export default function EventsScreen() {
   const [attendingIds, setAttendingIds] = useState<string[]>([]);
   const [attendeeCounts, setAttendeeCounts] = useState<{ [key: string]: number }>({});
 
- useFocusEffect(
-    useCallback(() => {
-      let unsubAttendList: (() => void)[] = [];
-      let unsubUserAttendList: (() => void)[] = [];
+useFocusEffect(
+  useCallback(() => {
+    let unsubAttendList: (() => void)[] = [];
+    let unsubUserAttendList: (() => void)[] = [];
 
-      const unsubEventList = listenToEvents((data) => {
-        setEvents(data);
+    // 🔙 Interceptar botón atrás
+    const onBackPress = () => {
+      router.replace("/auth/swipe-screen");
+      return true; // Previene el comportamiento por defecto
+    };
 
-        const currentUserId = auth.currentUser?.uid;
-        if (!currentUserId) return;
+    BackHandler.addEventListener("hardwareBackPress", onBackPress);
 
-        // Suscribirse a conteo de asistentes para cada evento
-        unsubAttendList = data.map((event) =>
-          listenToAttendeeCount(event.id, (count) => {
-            setAttendeeCounts((prev) => ({
-              ...prev,
-              [event.id]: count,
-            }));
-          })
-        );
+    const unsubEventList = listenToEvents((data) => {
+      setEvents(data);
 
-        // Suscribirse a asistencia del usuario para cada evento
-        unsubUserAttendList = data.map((event) =>
-          listenToUserAttendance(event.id, currentUserId, (isAttending) => {
-            setAttendingIds((prev) => {
-              if (isAttending && !prev.includes(event.id)) {
-                return [...prev, event.id];
-              } else if (!isAttending && prev.includes(event.id)) {
-                return prev.filter((id) => id !== event.id);
-              }
-              return prev;
-            });
-          })
-        );
-      });
-       return () => {
-        unsubEventList?.();
-        unsubAttendList.forEach((unsub) => unsub());
-        unsubUserAttendList.forEach((unsub) => unsub());
-      };
-    }, [])
-  );
+      const currentUserId = auth.currentUser?.uid;
+      if (!currentUserId) return;
+
+      // Suscribirse a conteo de asistentes para cada evento
+      unsubAttendList = data.map((event) =>
+        listenToAttendeeCount(event.id, (count) => {
+          setAttendeeCounts((prev) => ({
+            ...prev,
+            [event.id]: count,
+          }));
+        })
+      );
+
+      // Suscribirse a asistencia del usuario para cada evento
+      unsubUserAttendList = data.map((event) =>
+        listenToUserAttendance(event.id, currentUserId, (isAttending) => {
+          setAttendingIds((prev) => {
+            if (isAttending && !prev.includes(event.id)) {
+              return [...prev, event.id];
+            } else if (!isAttending && prev.includes(event.id)) {
+              return prev.filter((id) => id !== event.id);
+            }
+            return prev;
+          });
+        })
+      );
+    });
+
+    return () => {
+      unsubEventList?.();
+      unsubAttendList.forEach((unsub) => unsub());
+      unsubUserAttendList.forEach((unsub) => unsub());
+      BackHandler.removeEventListener("hardwareBackPress", onBackPress); // 👈 remover
+    };
+  }, [])
+);
+
 
   return (
     <View style={styles.container}>

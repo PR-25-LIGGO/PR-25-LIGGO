@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -33,51 +33,56 @@ export default function UserProfileScreen() {
   const router = useRouter();
 
   useFocusEffect(
-  React.useCallback(() => {
-    const onBackPress = () => {
-      router.replace("/auth/swipe-screen");
-      return true;
-    };
-
-    const fetchUserProfile = async () => {
-      const uid = auth.currentUser?.uid;
-      if (!uid) {
-        setUserProfile(null);
-        setLoading(false);
-        return;
-      }
-      try {
-        const docRef = doc(db, "users", uid);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          setUserProfile(docSnap.data() as UserProfile);
-        } else {
-          setUserProfile(null);
-        }
-      } catch (error) {
-        console.error("Error loading user profile:", error);
-        setUserProfile(null);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchUserProfile(); // 🔁 Se llama cada vez que se enfoca la pantalla
-
-    BackHandler.addEventListener("hardwareBackPress", onBackPress);
-    return () => BackHandler.removeEventListener("hardwareBackPress", onBackPress);
-  }, [])
-);
-
-
-  useFocusEffect(
     React.useCallback(() => {
       const onBackPress = () => {
         router.replace("/auth/swipe-screen");
         return true;
       };
+
+      const fetchUserProfile = async () => {
+        const uid = auth.currentUser?.uid;
+        if (!uid) {
+          setUserProfile(null);
+          setLoading(false);
+          return;
+        }
+        try {
+          const docRef = doc(db, "users", uid);
+          const docSnap = await getDoc(docRef);
+          if (docSnap.exists()) {
+            setUserProfile(docSnap.data() as UserProfile);
+          } else {
+            setUserProfile(null);
+          }
+        } catch (error) {
+          console.error("Error loading user profile:", error);
+          setUserProfile(null);
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      fetchUserProfile(); // 🔁 Se llama cada vez que se enfoca la pantalla
+
       BackHandler.addEventListener("hardwareBackPress", onBackPress);
       return () => BackHandler.removeEventListener("hardwareBackPress", onBackPress);
+    }, [])
+  );
+
+
+  useFocusEffect(
+    useCallback(() => {
+      const onBackPress = () => {
+        // Redirige al SwipeScreen
+        router.replace("/auth/swipe-screen"); // ✅ asegúrate que este sea el path correcto
+        return true;
+      };
+
+      BackHandler.addEventListener("hardwareBackPress", onBackPress);
+
+      return () => {
+        BackHandler.removeEventListener("hardwareBackPress", onBackPress);
+      };
     }, [])
   );
 
@@ -114,13 +119,15 @@ export default function UserProfileScreen() {
     router.replace("/auth/login-landing");
   };
 
-  if (loading) {
-    return (
-      <View style={styles.loader}>
-        <ActivityIndicator size="large" color="#4eff6a" />
-      </View>
-    );
-  }
+if (loading) {
+  return (
+    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F8FFF8' }}>
+      <ActivityIndicator size="large" color="#3DDC84" />
+      <Text style={{ marginTop: 10, fontSize: 16, color: "#555" }}>Cargando perfil...</Text>
+    </View>
+  );
+}
+
 
   if (!userProfile) {
     return (
@@ -151,9 +158,9 @@ export default function UserProfileScreen() {
           )}
 
           <Text style={styles.name}>
-  {userProfile.name || "Nombre no disponible"}
-  {age !== null ? `, ${age}` : ""}
-</Text>
+            {userProfile.name || "Nombre no disponible"}
+            {age !== null ? `, ${age}` : ""}
+          </Text>
 
 
           <View style={styles.actionButtonsRow}>
@@ -384,5 +391,5 @@ const styles = StyleSheet.create({
   modalConfirmText: {
     color: "#fff",
     fontWeight: "bold",
-  },
+  },
 });

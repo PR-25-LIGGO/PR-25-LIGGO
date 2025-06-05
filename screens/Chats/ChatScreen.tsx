@@ -14,6 +14,9 @@ import { db } from "@/services/firebase";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import { useFocusEffect } from 'expo-router';
+import { useCallback } from 'react';
+import { BackHandler } from "react-native";
 
 interface Match {
   id: string;
@@ -33,13 +36,14 @@ export default function ChatScreen() {
   const [chats, setChats] = useState<User[]>([]);
   const router = useRouter();
 
-  useEffect(() => {
+useFocusEffect(
+  useCallback(() => {
     const fetchMatchesAndChats = async () => {
       try {
         const currentUserId = await AsyncStorage.getItem("userId");
         if (!currentUserId) throw new Error("Usuario no autenticado");
 
-        // --- Fetch Matches (like the second code)
+        // --- Fetch Matches
         const swipesRef = collection(db, "swipes");
         const qMatches = query(
           swipesRef,
@@ -68,7 +72,7 @@ export default function ChatScreen() {
         }
         setMatches(userMatches);
 
-        // --- Fetch Chats (like the first code)
+        // --- Fetch Chats
         const matchesRef = collection(db, "matches");
         const qChats = query(matchesRef, where("usersId", "array-contains", currentUserId));
         const snapshotChats = await getDocs(qChats);
@@ -99,8 +103,20 @@ export default function ChatScreen() {
       }
     };
 
+    const backAction = () => {
+      router.replace("/auth/swipe-screen");
+      return true;
+    };
+
     fetchMatchesAndChats();
-  }, []);
+    BackHandler.addEventListener("hardwareBackPress", backAction);
+
+    return () => {
+      BackHandler.removeEventListener("hardwareBackPress", backAction);
+    };
+  }, [])
+);
+
 
   const goToChat = (chatId: string, name: string) => {
     router.push({

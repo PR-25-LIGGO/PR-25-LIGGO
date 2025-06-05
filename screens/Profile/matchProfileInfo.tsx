@@ -5,7 +5,7 @@ import { doc, getDoc, setDoc, updateDoc, query, where, getDocs, collection } fro
 import { db } from '@/services/firebase';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { ScrollView } from 'react-native-reanimated/lib/typescript/Animated';
+import { ScrollView } from 'react-native';
 import { deleteDoc } from "firebase/firestore";
 import { useFocusEffect } from 'expo-router';
 
@@ -43,89 +43,89 @@ export default function MatchProfileInfo() {
   //codigoSwipe
 
   async function handleMatch(matchType: string) {
-  try {
-    const userId = id?.toString(); // ID del perfil que estoy viendo
-    const fromUserId = await AsyncStorage.getItem("userId"); // ID del usuario autenticado
-    if (!fromUserId || !userId) return;
+    try {
+      const userId = id?.toString(); // ID del perfil que estoy viendo
+      const fromUserId = await AsyncStorage.getItem("userId"); // ID del usuario autenticado
+      if (!fromUserId || !userId) return;
 
-    const timestamp = new Date().toISOString();
+      const timestamp = new Date().toISOString();
 
-    // 🔐 ID compuesto predecible para matches
-    const idsOrdenados = [fromUserId, userId].sort(); // [userA, userB]
-    const matchDocId = `${idsOrdenados[0]}_${idsOrdenados[1]}`;
+      // 🔐 ID compuesto predecible para matches
+      const idsOrdenados = [fromUserId, userId].sort(); // [userA, userB]
+      const matchDocId = `${idsOrdenados[0]}_${idsOrdenados[1]}`;
 
-    // 🔄 Buscar documento original en swipes (de quien envió el primer match)
-    const swipeQuery = query(
-      collection(db, "swipes"),
-      where("fromUserId", "==", userId),
-      where("toUserId", "==", fromUserId)
-    );
-    const swipeSnapshot = await getDocs(swipeQuery);
+      // 🔄 Buscar documento original en swipes (de quien envió el primer match)
+      const swipeQuery = query(
+        collection(db, "swipes"),
+        where("fromUserId", "==", userId),
+        where("toUserId", "==", fromUserId)
+      );
+      const swipeSnapshot = await getDocs(swipeQuery);
 
-    // 🔍 Encontrar documento original (del primer swipe)
-    if (!swipeSnapshot.empty) {
-      const originalDoc = swipeSnapshot.docs[0]; // asumimos solo uno
-      const swipeDocRef = doc(db, "swipes", originalDoc.id);
+      // 🔍 Encontrar documento original (del primer swipe)
+      if (!swipeSnapshot.empty) {
+        const originalDoc = swipeSnapshot.docs[0]; // asumimos solo uno
+        const swipeDocRef = doc(db, "swipes", originalDoc.id);
 
-      if (matchType === "match") {
-  const q = query(
-    collection(db, "swipes"),
-    where("fromUserId", "==", userId),
-    where("toUserId", "==", fromUserId),
-    where("tipo", "==", "match")
-  );
-  const snapshot = await getDocs(q);
+        if (matchType === "match") {
+          const q = query(
+            collection(db, "swipes"),
+            where("fromUserId", "==", userId),
+            where("toUserId", "==", fromUserId),
+            where("tipo", "==", "match")
+          );
+          const snapshot = await getDocs(q);
 
-  if (!snapshot.empty) {
-    const sortedIds = [fromUserId, userId].sort();
-    const matchDocId = `${sortedIds[0]}_${sortedIds[1]}`;
+          if (!snapshot.empty) {
+            const sortedIds = [fromUserId, userId].sort();
+            const matchDocId = `${sortedIds[0]}_${sortedIds[1]}`;
 
-    const matchRef = doc(db, "matches", matchDocId);
-    await setDoc(matchRef, {
-      chatid: matchDocId,
-      howMatch: timestamp,
-      usersId: sortedIds,
-    });
-    console.log("✅ Match confirmado y guardado en matches");
-    router.setParams({ refresh: Date.now() }); // para acutalizar
-router.back();
-  }
-}
+            const matchRef = doc(db, "matches", matchDocId);
+            await setDoc(matchRef, {
+              chatid: matchDocId,
+              howMatch: timestamp,
+              usersId: sortedIds,
+            });
+            console.log("✅ Match confirmado y guardado en matches");
+            router.setParams({ refresh: Date.now() }); // para acutalizar
+            router.back();
+          }
+        }
 
 
-      if (matchType === "reject") {
-  await updateDoc(swipeDocRef, {
-    tipo: "reject",
-    fecha: timestamp,
-  });
-  console.log("🚫 Rechazo actualizado en swipes");
+        if (matchType === "reject") {
+          await updateDoc(swipeDocRef, {
+            tipo: "reject",
+            fecha: timestamp,
+          });
+          console.log("🚫 Rechazo actualizado en swipes");
 
-  // Eliminar el documento de matches
-  const sortedIds = [fromUserId, userId].sort();
-  const matchDocId = `${sortedIds[0]}_${sortedIds[1]}`;
-  const matchRef = doc(db, "matches", matchDocId);
-  const matchSnap = await getDoc(matchRef);
-  if (matchSnap.exists()) {
-    await deleteDoc(matchRef);
-    console.log("🗑️ Documento de match eliminado");
-  }
+          // Eliminar el documento de matches
+          const sortedIds = [fromUserId, userId].sort();
+          const matchDocId = `${sortedIds[0]}_${sortedIds[1]}`;
+          const matchRef = doc(db, "matches", matchDocId);
+          const matchSnap = await getDoc(matchRef);
+          if (matchSnap.exists()) {
+            await deleteDoc(matchRef);
+            console.log("🗑️ Documento de match eliminado");
+          }
 
-  setUser(null);
-  router.setParams({ refresh: Date.now() }); // para actualizar
-  router.back();
-}
+          setUser(null);
+          router.setParams({ refresh: Date.now() }); // para actualizar
+          router.back();
+        }
 
-    } else {
-      console.warn("❗ No se encontró el swipe original para actualizar");
+      } else {
+        console.warn("❗ No se encontró el swipe original para actualizar");
+      }
+    } catch (error) {
+      console.error("Error al manejar el match/reject:", error);
     }
-  } catch (error) {
-    console.error("Error al manejar el match/reject:", error);
   }
-}
 
 
 
-//Final codigo Swipe
+  //Final codigo Swipe
 
 
   function calculateAge(birthdate: string): number {
@@ -142,7 +142,7 @@ router.back();
   }
 
   return (
-    <View style={styles.container} >
+    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 60 }}>
       <View style={styles.topBar}>
         <Image source={require('@/assets/logo-liggo.png')} style={styles.logo} resizeMode="contain" />
         <TouchableOpacity onPress={() => router.back()}>
@@ -161,14 +161,14 @@ router.back();
             <Text style={styles.name}>{user.name}</Text>
             <Text style={styles.age}>{calculateAge(user.birthdate)} años</Text>
             <Text style={styles.sectionTitle}>🎯 Intereses:</Text>
-<View style={styles.tagsContainer}>
-  {user.interests.map((interest, index) => (
-    <View key={index} style={styles.tag}>
-      <Text style={styles.tagText}>{interest}</Text>
-    </View>
-  ))}
-</View>
 
+            <View style={styles.tagsContainer}>
+              {user.interests.map((interest, index) => (
+                <View key={index} style={styles.tag}>
+                  <Text style={styles.tagText}>{interest}</Text>
+                </View>
+              ))}
+            </View>
           </View>
 
           <View style={styles.galeriaContainer}>
@@ -183,17 +183,9 @@ router.back();
                 </TouchableOpacity>
               )}
               contentContainerStyle={styles.galleryContainer}
+              scrollEnabled={false} // importante para que el ScrollView principal funcione correctamente
             />
           </View>
-
-          <Modal visible={!!selectedImage} transparent={true} animationType="fade">
-            <View style={styles.modalBackground}>
-              <TouchableOpacity style={styles.closeButton} onPress={() => setSelectedImage(null)}>
-                <Text style={styles.closeText}>✕</Text>
-              </TouchableOpacity>
-              <Image source={{ uri: selectedImage || '' }} style={styles.fullScreenImage} />
-            </View>
-          </Modal>
 
           <View style={styles.buttonsContainer}>
             <TouchableOpacity onPress={() => handleMatch("reject")} style={styles.rejectButton}>
@@ -205,7 +197,17 @@ router.back();
           </View>
         </>
       )}
-    </View>
+
+      <Modal visible={!!selectedImage} transparent={true} animationType="fade">
+        <View style={styles.modalBackground}>
+          <TouchableOpacity style={styles.closeButton} onPress={() => setSelectedImage(null)}>
+            <Text style={styles.closeText}>✕</Text>
+          </TouchableOpacity>
+          <Image source={{ uri: selectedImage || '' }} style={styles.fullScreenImage} />
+        </View>
+      </Modal>
+    </ScrollView>
+
   );
 }
 
@@ -246,13 +248,13 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
 
-//card de galeria 
-galeriaContainer: {
+  //card de galeria 
+  galeriaContainer: {
     backgroundColor: "#f4fef5",
     padding: 16,
     borderRadius: 14,
     marginBottom: 20,
-  
+
     shadowColor: "red",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.08,
@@ -357,27 +359,27 @@ galeriaContainer: {
   },
 
   tagsContainer: {
-  flexDirection: "row",
-  flexWrap: "wrap",
-  gap: 8,
-  rowGap: 10,
-  justifyContent: "center",
-  marginBottom: 10,
-},
-tag: {
-  borderWidth: 1.5,
-  borderColor: "#3DDC84",
-  backgroundColor: "#fff",
-  borderRadius: 20,
-  paddingVertical: 6,
-  paddingHorizontal: 14,
-  elevation: 2,
-},
-tagText: {
-  fontSize: 14,
-  color: "#111",
-  fontWeight: "500",
-  fontStyle: "italic",
-},
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    rowGap: 10,
+    justifyContent: "center",
+    marginBottom: 10,
+  },
+  tag: {
+    borderWidth: 1.5,
+    borderColor: "#3DDC84",
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+    elevation: 2,
+  },
+  tagText: {
+    fontSize: 14,
+    color: "#111",
+    fontWeight: "500",
+    fontStyle: "italic",
+  },
 
 });

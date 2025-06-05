@@ -2,9 +2,24 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
+import { useFocusEffect } from "@react-navigation/native";
+import { BackHandler } from "react-native";
+import { useCallback } from "react";
 
 export default function LoginLanding() {
   const router = useRouter();
+useFocusEffect(
+  useCallback(() => {
+    const onBackPress = () => {
+      BackHandler.exitApp(); // 🔚 Cierra la app
+      return true;
+    };
+
+    BackHandler.addEventListener("hardwareBackPress", onBackPress);
+
+    return () => BackHandler.removeEventListener("hardwareBackPress", onBackPress);
+  }, [])
+);
 
   return (
     <LinearGradient

@@ -2,11 +2,10 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from "reac
 import { LinearGradient } from "expo-linear-gradient";
 import { useState } from "react";
 import { useRouter } from "expo-router";
-import { createUserWithEmailAndPassword } from "firebase/auth";
+import { createUserWithEmailAndPassword, sendEmailVerification } from "firebase/auth";
 import { auth } from "../../services/firebase";
 import { doc, setDoc } from "firebase/firestore";
 import { db } from "../../services/firebase";
-import { sendEmailVerification } from "firebase/auth";
 
 export default function Register() {
   const router = useRouter();
@@ -31,67 +30,70 @@ export default function Register() {
     setConfirm(text.replace(/\s/g, ""));
   };
 
-const handleRegister = async () => {
-  if (!email || !password || !confirm) {
-    Alert.alert("Error", "Todos los campos son obligatorios");
-    return;
-  }
+  // Validación de contraseña fuerte
+  const validatePassword = (password: string) => {
+    const uppercaseRegex = /[A-Z]/;
+    const numberRegex = /\d/;
+    const specialCharRegex = /[!@#$%^&*(),.?":{}|<>]/;
+    return uppercaseRegex.test(password) && numberRegex.test(password) && specialCharRegex.test(password);
+  };
 
-  if (email.includes(" ")) {
-    Alert.alert("Correo inválido", "El correo no puede contener espacios");
-    return;
-  }
+  const handleRegister = async () => {
+    if (!email || !password || !confirm) {
+      Alert.alert("Error", "Todos los campos son obligatorios");
+      return;
+    }
 
-  if (password.includes(" ") || confirm.includes(" ")) {
-    Alert.alert("Contraseña inválida", "La contraseña no puede contener espacios");
-    return;
-  }
+    if (email.includes(" ")) {
+      Alert.alert("Correo inválido", "El correo no puede contener espacios");
+      return;
+    }
 
-  if (!email.endsWith("@est.univalle.edu")) {
-    Alert.alert("Correo inválido", "Usa tu correo institucional (@est.univalle.edu)");
-    return;
-  }
+    if (password.includes(" ") || confirm.includes(" ")) {
+      Alert.alert("Contraseña inválida", "La contraseña no puede contener espacios");
+      return;
+    }
 
-  if (password !== confirm) {
-    Alert.alert("Contraseñas no coinciden", "Revisa que ambas contraseñas sean iguales");
-    return;
-  }
+    if (!email.endsWith("@est.univalle.edu")) {
+      Alert.alert("Correo inválido", "Usa tu correo institucional (@est.univalle.edu)");
+      return;
+    }
 
-  // Validación adicional para contraseña fuerte
-  const uppercaseRegex = /[A-Z]/;
-  const numberRegex = /\d/;
-  const specialCharRegex = /[!@#$%^&*(),.?":{}|<>]/;
+    if (password !== confirm) {
+      Alert.alert("Contraseñas no coinciden", "Revisa que ambas contraseñas sean iguales");
+      return;
+    }
 
-  if (!uppercaseRegex.test(password)) {
-    Alert.alert("Contraseña débil", "La contraseña debe contener al menos una letra mayúscula.");
-    return;
-  }
+    if (!validatePassword(password)) {
+      Alert.alert(
+        "Contraseña débil",
+        "La contraseña debe contener al menos una letra mayúscula, un número y un carácter especial."
+      );
+      return;
+    }
 
-  if (!numberRegex.test(password)) {
-    Alert.alert("Contraseña débil", "La contraseña debe contener al menos un número.");
-    return;
-  }
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
 
-  if (!specialCharRegex.test(password)) {
-    Alert.alert("Contraseña débil", "La contraseña debe contener al menos un carácter especial.");
-    return;
-  }
+      // Enviar verificación de correo electrónico
+      await sendEmailVerification(user);
 
-  try {
-    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-    const user = userCredential.user;
+      Alert.alert(
+        "Verificación enviada",
+        "Hemos enviado un enlace de verificación a tu correo. Revisa tu bandeja de entrada o spam."
+      );
 
-    // Guardar en Firestore algún dato inicial del usuario
-    await setDoc(doc(db, "users", user.uid), {
-      createdAt: new Date().toISOString()
-    });
+      // Guardamos los datos en Firestore
+      await setDoc(doc(db, "users", user.uid), {
+        createdAt: new Date().toISOString(),
+      });
 
-    Alert.alert("Registro exitoso", "Cuenta creada correctamente");
-    router.push("/auth/name"); 
-  } catch (error: any) {
-    Alert.alert("Error al registrarse", error.message);
-  }
-};
+      router.push("/auth/verify-code"); 
+    } catch (error: any) {
+      Alert.alert("Error al registrarse", error.message);
+    }
+  };
 
   return (
     <View style={styles.container}>

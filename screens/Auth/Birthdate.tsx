@@ -1,42 +1,75 @@
-import React, { useState } from "react";
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  Platform,
-} from "react-native";
-import DateTimePicker from "@react-native-community/datetimepicker";
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import { useRouter } from "expo-router";
-import { auth, db } from "../../services/firebase";
+import { useState } from "react";
+import { auth } from "../../services/firebase";
+import { db } from "../../services/firebase";
 import { doc, setDoc } from "firebase/firestore";
-import { Alert } from "react-native";
+import { useRouter } from "expo-router";
 
 export default function Birthdate() {
   const router = useRouter();
+  const [birthdate, setBirthdate] = useState("");
 
-  const [birthdate, setBirthdate] = useState<Date | null>(null);
-  const [showPicker, setShowPicker] = useState(false);
+  // Función que limpia la fecha y la formatea
+  const handleBirthdateChange = (text: string) => {
+    const cleaned = text.replace(/\D/g, "");
 
-  const handleChange = (event: any, selectedDate?: Date) => {
-    setShowPicker(Platform.OS === "ios"); // en Android se oculta tras elegir
-    if (selectedDate) {
-      setBirthdate(selectedDate);
+    // Limitar a 10 caracteres (DDMMYYYY)
+    if (cleaned.length > 8) return; 
+
+    let formatted = cleaned;
+
+    // Formato de fecha DD/MM/YYYY
+    if (cleaned.length >= 3 && cleaned.length <= 4) {
+      formatted = `${cleaned.slice(0, 2)}/${cleaned.slice(2)}`;
+    } else if (cleaned.length >= 5 && cleaned.length <= 8) {
+      formatted = `${cleaned.slice(0, 2)}/${cleaned.slice(2, 4)}/${cleaned.slice(4, 8)}`;
     }
-  };
 
-  const formatDate = (date: Date | null) => {
-    if (!date) return "";
-    const day = date.getDate().toString().padStart(2, "0");
-    const month = (date.getMonth() + 1).toString().padStart(2, "0");
-    const year = date.getFullYear();
-    return `${day} / ${month} / ${year}`;
+    setBirthdate(formatted);
   };
 
   const handleContinue = async () => {
-    if (!birthdate) {
-      Alert.alert("Fecha requerida", "Por favor selecciona tu fecha de nacimiento");
+    if (!birthdate.trim()) {
+      Alert.alert("Fecha requerida", "Por favor ingresa tu fecha de nacimiento");
+      return;
+    }
+
+    // Validación de formato de fecha
+    const regex = /^\d{2}\/\d{2}\/\d{4}$/;
+    if (!regex.test(birthdate)) {
+      Alert.alert("Formato incorrecto", "El formato debe ser DD/MM/YYYY");
+      return;
+    }
+
+    const [day, month, year] = birthdate.split("/").map(Number);
+
+    // Validar días y meses
+    if (day < 1 || day > 31) {
+      Alert.alert("Día inválido", "El día debe estar entre 01 y 31");
+      return;
+    }
+
+    if (month < 1 || month > 12) {
+      Alert.alert("Mes inválido", "El mes debe estar entre 01 y 12");
+      return;
+    }
+
+    // Validar el año
+    const currentYear = new Date().getFullYear();
+    if (year < 1900 || year > currentYear - 18) {
+      Alert.alert("Año inválido", "El año debe ser mayor de 18 y menor de 100 años");
+      return;
+    }
+
+    // Calcular la edad y validar si es mayor de 18
+    const birthDate = new Date(year, month - 1, day);
+    const today = new Date();
+    const age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+
+    if (age < 18 || (age === 18 && monthDiff < 0)) {
+      Alert.alert("Edad insuficiente", "Debes ser mayor de 18 años");
       return;
     }
 
@@ -48,7 +81,7 @@ export default function Birthdate() {
 
     try {
       const userRef = doc(db, "users", uid);
-      await setDoc(userRef, { birthdate: birthdate.toISOString() }, { merge: true });
+      await setDoc(userRef, { birthdate }, { merge: true });
       router.push("/auth/gender");
     } catch (error: any) {
       Alert.alert("Error al guardar", error.message);
@@ -63,26 +96,17 @@ export default function Birthdate() {
 
       <Text style={styles.title}>Mi fecha de nacimiento</Text>
 
-      <TouchableOpacity
-        onPress={() => setShowPicker(true)}
-        style={styles.dateInput}
-      >
-        <Text style={{ color: birthdate ? "#000" : "#999", fontSize: 18 }}>
-          {birthdate ? formatDate(birthdate) : "Selecciona tu fecha"}
-        </Text>
-      </TouchableOpacity>
+      <TextInput
+        placeholder="DD /  MM  /  YYYY"
+        placeholderTextColor="#999"
+        keyboardType="numeric"
+        value={birthdate}
+        onChangeText={handleBirthdateChange}
+        style={styles.input}
+        maxLength={10} 
+      />
 
-      {showPicker && (
-        <DateTimePicker
-          value={birthdate || new Date(2000, 0, 1)} // fecha por defecto si no hay
-          mode="date"
-          display={Platform.OS === "ios" ? "spinner" : "default"}
-          maximumDate={new Date()} // no puede ser futuro
-          onChange={handleChange}
-        />
-      )}
-
-      <Text style={styles.info}>Tu edad será pública</Text>
+      <Text style={styles.info}>Formato: Día/Mes/Año (ejemplo: 30/01/2000)</Text>
 
       <TouchableOpacity onPress={handleContinue} style={styles.buttonWrapper}>
         <LinearGradient
@@ -116,12 +140,13 @@ const styles = StyleSheet.create({
     marginBottom: 30,
     textAlign: "center",
   },
-  dateInput: {
+  input: {
     borderBottomWidth: 1,
     borderBottomColor: "#ccc",
-    paddingVertical: 16,
+    paddingVertical: 10,
+    fontSize: 16,
     marginBottom: 8,
-    alignItems: "center",
+    textAlign: "center",
   },
   info: {
     textAlign: "center",

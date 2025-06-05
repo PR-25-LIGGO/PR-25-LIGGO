@@ -4,6 +4,7 @@ import {
   TouchableOpacity,
   TextInput,
   StyleSheet,
+  Alert,
   ScrollView,
   KeyboardAvoidingView,
   Platform,
@@ -13,8 +14,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useState } from "react";
 import { auth, db } from "../../services/firebase";
 import { doc, setDoc } from "firebase/firestore";
-import { Alert } from "react-native";
-import { useEffect } from "react";
+
 const CAREERS = [
   "Arquitectura", "Ingeniería Civil", "Medicina", "Odontología", "Psicología",
   "Derecho", "Administración de Empresas", "Contaduría Pública",
@@ -29,20 +29,20 @@ const CAREERS = [
 
 export default function NameScreen() {
   const router = useRouter();
-
-  useEffect(() => {
-    if (!auth.currentUser) {
-      router.replace("/auth/login"); // O la pantalla inicial que uses
-    }
-  }, []);
   const [name, setName] = useState("");
   const [selectedCareer, setSelectedCareer] = useState<string | null>(null);
 
   const handleContinue = async () => {
+    if (name.length > 60) {
+      Alert.alert("Nombre demasiado largo", "El nombre no puede superar los 60 caracteres.");
+      return;
+    }
+
     if (!name.trim()) {
       Alert.alert("Nombre requerido", "Por favor ingresa tu nombre completo");
       return;
     }
+
     if (!selectedCareer) {
       Alert.alert("Carrera requerida", "Por favor selecciona tu carrera");
       return;
@@ -64,72 +64,77 @@ export default function NameScreen() {
   };
 
   return (
-<KeyboardAvoidingView
-  behavior={Platform.OS === "ios" ? "padding" : "padding"}
-  style={styles.container}
-  keyboardVerticalOffset={Platform.OS === "ios" ? 60 : 60}
->
-  <ScrollView
-    contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 100, paddingBottom: 100, flexGrow: 1 }}
-    keyboardShouldPersistTaps="handled"
-    showsVerticalScrollIndicator={false}
-  >
-    <TouchableOpacity onPress={() => router.back()} style={styles.backArrow}>
-      <Text style={{ fontSize: 18 }}>◀</Text>
-    </TouchableOpacity>
-
-    <Text style={styles.title}>Mi nombre es:</Text>
-    <TextInput
-      placeholder="Nombre Apellido"
-      placeholderTextColor="#999"
-      value={name}
-      onChangeText={setName}
-      style={styles.input}
-      returnKeyType="done"
-    />
-
-    <Text style={styles.title}>Selecciona tu carrera:</Text>
-    <View style={styles.tagsContainer}>
-      {CAREERS.map((career) => (
-        <TouchableOpacity
-          key={career}
-          style={[
-            styles.tag,
-            selectedCareer === career && styles.selectedTag,
-          ]}
-          onPress={() => setSelectedCareer(career)}
-        >
-          <Text
-            style={[
-              styles.tagText,
-              selectedCareer === career && styles.selectedTagText,
-            ]}
-          >
-            {career}
-          </Text>
-        </TouchableOpacity>
-      ))}
-    </View>
-
-    <TouchableOpacity onPress={handleContinue} style={styles.buttonWrapper}>
-      <LinearGradient
-        colors={["#4eff6a", "#ff87d2"]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 0 }}
-        style={styles.button}
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      style={styles.container}
+      keyboardVerticalOffset={60}
+    >
+      <ScrollView
+        contentContainerStyle={{
+          paddingHorizontal: 24,
+          paddingTop: 100,
+          paddingBottom: 100,
+          flexGrow: 1,
+        }}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.buttonText}>CONTINUAR</Text>
-      </LinearGradient>
-    </TouchableOpacity>
-  </ScrollView>
-</KeyboardAvoidingView>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backArrow}>
+          <Text style={{ fontSize: 18 }}>◀</Text>
+        </TouchableOpacity>
+
+        <Text style={styles.title}>Mi nombre es:</Text>
+        <TextInput
+          placeholder="Nombre Apellido"
+          placeholderTextColor="#999"
+          value={name}
+          onChangeText={(text) => {
+            const cleaned = text
+              .replace(/[^a-zA-ZÁÉÍÓÚáéíóúÑñ\s]/g, "") // solo letras y espacios
+              .replace(/\s{2,}/g, " ")                 // máximo un espacio
+              .trimStart();                            // evitar espacio inicial
+
+            if (cleaned.length <= 60) setName(cleaned);
+          }}
+
+          style={styles.input}
+          returnKeyType="done"
+        />
+
+        <Text style={styles.title}>Selecciona tu carrera:</Text>
+        <View style={styles.tagsContainer}>
+          {CAREERS.map((career) => (
+            <TouchableOpacity
+              key={career}
+              style={[styles.tag, selectedCareer === career && styles.selectedTag]}
+              onPress={() => setSelectedCareer(career)}
+            >
+              <Text style={[styles.tagText, selectedCareer === career && styles.selectedTagText]}>
+                {career}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        <TouchableOpacity onPress={handleContinue} style={styles.buttonWrapper}>
+          <LinearGradient
+            colors={["#4eff6a", "#ff87d2"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.button}
+          >
+            <Text style={styles.buttonText}>CONTINUAR</Text>
+          </LinearGradient>
+        </TouchableOpacity>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
     backgroundColor: "#fff",
+    flex: 1,
   },
   backArrow: {
     position: "absolute",
