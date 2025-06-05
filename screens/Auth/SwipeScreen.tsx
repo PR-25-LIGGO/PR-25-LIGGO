@@ -257,7 +257,7 @@ const styles = StyleSheet.create({
     color: "lightgray",
   },
   card: {
-    flex: 1,
+    
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#fff',
@@ -298,7 +298,7 @@ const styles = StyleSheet.create({
 
   infoButton: {
     borderRadius: 50,
-    padding: 10,
+    padding: 5,
     borderWidth: 2,
     borderColor: '#555',
   },

@@ -110,45 +110,65 @@ export default function EditProfileScreen() {
   };
 
   const handleSave = async () => {
-    if (!name.trim()) {
-      Alert.alert("Nombre requerido", "Por favor ingresa tu nombre completo");
-      return;
-    }
+  if (!name.trim()) {
+    Alert.alert("Nombre requerido", "Por favor ingresa tu nombre completo");
+    return;
+  }
 
-    const selectedPhotos = photos.filter((p) => p !== null) as string[];
-    if (selectedPhotos.length < 2 || selectedPhotos.length > 6) {
-      Alert.alert("Fotos requeridas", "Por favor agrega entre 2 y 6 fotos");
-      return;
-    }
+  const selectedPhotos = photos.filter(p => p !== null) as string[];
+  if (selectedPhotos.length < 2 || selectedPhotos.length > 6) {
+    Alert.alert("Fotos requeridas", "Por favor agrega entre 2 y 6 fotos");
+    return;
+  }
 
-    try {
-      setSaving(true);
-      const uid = auth.currentUser?.uid;
-      if (!uid) throw new Error("Usuario no autenticado");
+  try {
+    setSaving(true);
+    const uid = auth.currentUser?.uid;
+    if (!uid) throw new Error("Usuario no autenticado");
 
-      const downloadURLs: string[] = [];
+    const downloadURLs: string[] = [];
 
-      for (let i = 0; i < selectedPhotos.length; i++) {
-        const response = await fetch(selectedPhotos[i]);
-        const blob = await response.blob();
-        const filename = `users/${uid}/photo${i + 1}.jpg`;
-
-        const imageRef = ref(storage, filename);
-        await uploadBytes(imageRef, blob);
-        const url = await getDownloadURL(imageRef);
-        downloadURLs.push(url);
+    // Subir imágenes en paralelo solo si son nuevas
+    const uploadTasks = selectedPhotos.map(async (photo, i) => {
+      if (photo.startsWith("https://")) {
+        // Ya está subida
+        return photo;
       }
 
-      await setDoc(doc(db, "users", uid), { name, interests: selectedInterests, photos: downloadURLs }, { merge: true });
+      const response = await fetch(photo);
+      const blob = await response.blob();
+      const filename = `users/${uid}/photo${i + 1}.jpg`;
 
-      Alert.alert("Éxito", "Perfil actualizado");
-      router.back();
-    } catch (error: any) {
-      Alert.alert("Error", error.message);
-    } finally {
-      setSaving(false);
-    }
-  };
+      const imageRef = ref(storage, filename);
+      await uploadBytes(imageRef, blob);
+      return await getDownloadURL(imageRef);
+    });
+
+    // Ejecutar todas las subidas en paralelo
+    const urls = await Promise.all(uploadTasks);
+    downloadURLs.push(...urls);
+
+    // Guardar en Firestore
+    await setDoc(
+      doc(db, "users", uid),
+      {
+        name,
+        interests: selectedInterests,
+        photos: downloadURLs,
+      },
+      { merge: true }
+    );
+
+    Alert.alert("Éxito", "Perfil actualizado");
+    router.back();
+  } catch (error: any) {
+    Alert.alert("Error", error.message);
+  } finally {
+    setSaving(false);
+  }
+};
+
+
 
   if (loading) {
     return (
