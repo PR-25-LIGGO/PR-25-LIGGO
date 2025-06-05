@@ -32,8 +32,14 @@ export default function UserProfileScreen() {
   const [modalVisible, setModalVisible] = useState(false);
   const router = useRouter();
 
-  useEffect(() => {
-    async function fetchUserProfile() {
+  useFocusEffect(
+  React.useCallback(() => {
+    const onBackPress = () => {
+      router.replace("/auth/swipe-screen");
+      return true;
+    };
+
+    const fetchUserProfile = async () => {
       const uid = auth.currentUser?.uid;
       if (!uid) {
         setUserProfile(null);
@@ -54,9 +60,15 @@ export default function UserProfileScreen() {
       } finally {
         setLoading(false);
       }
-    }
-    fetchUserProfile();
-  }, []);
+    };
+
+    fetchUserProfile(); // 🔁 Se llama cada vez que se enfoca la pantalla
+
+    BackHandler.addEventListener("hardwareBackPress", onBackPress);
+    return () => BackHandler.removeEventListener("hardwareBackPress", onBackPress);
+  }, [])
+);
+
 
   useFocusEffect(
     React.useCallback(() => {

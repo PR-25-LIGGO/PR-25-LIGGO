@@ -7,6 +7,8 @@ import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ScrollView } from 'react-native-reanimated/lib/typescript/Animated';
 import { deleteDoc } from "firebase/firestore";
+import { useFocusEffect } from 'expo-router';
+
 
 interface UserProfile {
   name: string;
@@ -85,6 +87,8 @@ export default function MatchProfileInfo() {
       usersId: sortedIds,
     });
     console.log("✅ Match confirmado y guardado en matches");
+    router.setParams({ refresh: Date.now() }); // para acutalizar
+router.back();
   }
 }
 
@@ -107,6 +111,7 @@ export default function MatchProfileInfo() {
   }
 
   setUser(null);
+  router.setParams({ refresh: Date.now() }); // para actualizar
   router.back();
 }
 
