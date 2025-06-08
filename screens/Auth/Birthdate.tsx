@@ -57,8 +57,8 @@ export default function Birthdate() {
 
     // Validar el año
     const currentYear = new Date().getFullYear();
-    if (year < 1900 || year > currentYear - 18) {
-      Alert.alert("Año inválido", "El año debe ser mayor de 18 y menor de 100 años");
+    if (year < 1930 || year > currentYear - 18) {
+      Alert.alert("Año inválido", "El año debe ser mayor de 18 y menor de 95 años");
       return;
     }
 

@@ -12,7 +12,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from "@react-navigation/native";
 import { BackHandler } from "react-native";
 import { useCallback } from "react";
-import { ActivityIndicator } from "react-native";
+import { ActivityIndicator,Alert} from "react-native";
 
 
 interface User {
@@ -28,17 +28,25 @@ export default function SwipeScreen() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [noMoreUsers, setNoMoreUsers] = useState(false);
   const router = useRouter();
-  useFocusEffect(
-    useCallback(() => {
-      const onBackPress = () => {
-        router.replace("/auth/login-landing"); // Ruta a la pantalla de login
-        return true;
-      };
+useFocusEffect(
+  useCallback(() => {
+    const onBackPress = () => {
+      Alert.alert(
+        "¿Salir de la app?",
+        "¿Estás seguro de que deseas salir?",
+        [
+          { text: "Cancelar", style: "cancel" },
+          { text: "Salir", onPress: () => BackHandler.exitApp(), style: "destructive" }
+        ]
+      );
+      return true;
+    };
 
-      BackHandler.addEventListener("hardwareBackPress", onBackPress);
-      return () => BackHandler.removeEventListener("hardwareBackPress", onBackPress);
-    }, [])
-  );
+    BackHandler.addEventListener("hardwareBackPress", onBackPress);
+    return () => BackHandler.removeEventListener("hardwareBackPress", onBackPress);
+  }, [])
+);
+
 
   useEffect(() => {
     fetchMatchedUsers();
@@ -173,14 +181,14 @@ export default function SwipeScreen() {
     }
   };
 
-if (loading) {
-  return (
-    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F8FFF8' }}>
-      <ActivityIndicator size="large" color="#3DDC84" />
-      <Text style={{ marginTop: 10, fontSize: 16, color: "#555" }}>Cargando usuarios...</Text>
-    </View>
-  );
-}
+  if (loading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F8FFF8' }}>
+        <ActivityIndicator size="large" color="#3DDC84" />
+        <Text style={{ marginTop: 10, fontSize: 16, color: "#555" }}>Cargando usuarios...</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
